@@ -1,0 +1,5 @@
+# fichiers de personnage et extraction locale du jeu : jamais dans le dépôt
+*.fch
+*.fch.old
+extraction/
+__pycache__/

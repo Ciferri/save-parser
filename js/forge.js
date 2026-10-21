@@ -1,11 +1,16 @@
 // Mécanique de la Forge du potentiel : hachage des noms, générateur aléatoire de Unity et simulation des améliorations.
 // Utilisé par la page et par le worker de recherche de noms (importScripts).
+//
+// Une tentative tire une valeur v dans [0, 1] :
+//   v <= chance de réussite             -> l'objet gagne un niveau ;
+//   sinon, 1 - v <= chance de casse      -> l'objet est détruit ;
+//   sinon                                -> l'objet perd un niveau.
+// Les chances viennent des données de chaque objet (js/jeu.js).
 "use strict";
 
-const CHANCE_REUSSITE = Math.fround(0.65);
-const CHANCE_CASSE = 1.0;          // une tentative ratée détruit toujours l'objet
-const MAX_TENTATIVES = 200;
-const MAX_SERIE = 8;               // le plus d'améliorations qu'un nouveau personnage obtient d'affilée
+const REGLES_DEFAUT = { chance: 0.65, casse: 0.1 };
+const MAX_TENTATIVES = 500;        // arrête une simulation qui ne casse jamais
+const MAX_SERIE = 8;               // le plus de réussites d'affilée qu'un nouveau personnage obtient dès le départ
 const QUALITE_MAX = 65535;
 
 // Le flottant de 32 bits dont l'écriture mémoire est 01 00 00 34 : Unity multiplie par lui pour obtenir Random.value.
@@ -35,7 +40,7 @@ function tirage(graine) {
   return [Math.fround(Math.fround(premier & 0x7fffff) * ECHELLE), second % 99999999];
 }
 
-// Seulement Random.value : suffit pour la première tentative d'un nouveau personnage (recherche rapide).
+// Seulement Random.value : suffit pour la première tentative sur une clé (recherche rapide).
 function premiereValeur(graine) {
   const e0 = graine >>> 0;
   const e1 = (Math.imul(e0, 1812433253) + 1) >>> 0;
@@ -45,39 +50,43 @@ function premiereValeur(graine) {
   return Math.fround(Math.fround(((t ^ e3 ^ (t >>> 8) ^ (e3 >>> 19)) & 0x7fffff)) * ECHELLE);
 }
 
-// Issue d'une tentative à partir de la valeur tirée.
-function issue(valeur) {
-  if (valeur <= CHANCE_REUSSITE) return "reussite";
-  if (Math.fround(1 - valeur) <= CHANCE_CASSE) return "casse";
+// Issue d'une tentative à partir de la valeur tirée (comparaisons en flottants 32 bits, comme le jeu).
+function issue(valeur, regles = REGLES_DEFAUT) {
+  if (valeur <= Math.fround(regles.chance)) return "reussite";
+  if (Math.fround(1 - valeur) <= Math.fround(regles.casse)) return "casse";
   return "echec";
 }
 
-// Rejoue les tentatives d'amélioration d'un objet jusqu'à ce qu'il casse.
-// graines : Map clé -> graine enregistrée dans le personnage ; elle est modifiée seulement si `modifier` est vrai.
-function simuler(prefab, qualite, nomPerso, graines = new Map(), modifier = false) {
+// Rejoue les tentatives d'amélioration d'un objet jusqu'à ce qu'il casse (ou jusqu'à `maxTentatives`).
+// graines : Map clé -> graine enregistrée dans le personnage ; elle n'est modifiée que si `modifier` est vrai.
+function simuler(prefab, qualite, nomPerso, graines = new Map(), { modifier = false, regles = REGLES_DEFAUT, maxTentatives = MAX_TENTATIVES } = {}) {
   const g = modifier ? graines : new Map(graines);
   const base = hachage(prefab);
   const hNom = hachage(nomPerso);
   const etapes = [];
-  let niveau = qualite;
-  for (let n = 0; n < MAX_TENTATIVES; n++) {
+  let niveau = qualite, pic = qualite, picApres = 0;
+  for (let n = 0; n < maxTentatives; n++) {
     const vise = niveau + 1;
     const cle = (base + vise) | 0;
     const enregistree = g.has(cle);
     const [valeur, suivante] = tirage(enregistree ? g.get(cle) : (hNom + cle) | 0);
     g.set(cle, suivante);
-    const res = issue(valeur);
+    const res = issue(valeur, regles);
     etapes.push({ vers: vise, valeur, issue: res, enregistree });
-    if (res === "reussite") niveau = vise;
-    else if (res === "echec") niveau = vise - 2;
+    if (res === "reussite") {
+      niveau = vise;
+      if (niveau > pic) { pic = niveau; picApres = etapes.length; }
+    } else if (res === "echec") niveau = vise - 2;
     else break;
   }
   const derniere = etapes[etapes.length - 1];
+  let serie = 0;
+  while (serie < etapes.length && etapes[serie].issue === "reussite") serie++;
   return {
-    prefab, depart: qualite, etapes,
+    prefab, depart: qualite, etapes, serie, pic, picApres,
     ameliorations: etapes.filter((e) => e.issue === "reussite").length,
     casse: derniere.issue === "casse",
-    niveauFinal: derniere.issue === "casse" ? derniere.vers - 1 : niveau,
+    niveauFinal: niveau,
   };
 }
 
@@ -89,43 +98,17 @@ const ALPHABETS = {
   alphanum: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
 };
 
-// Vérifie un hachage de nom h pour un objet dont la première clé visée est cle0.
-// mode "exact" : chaque copie sauf la dernière obtient exactement `cible` réussites puis casse ;
-//                la dernière (si copies > 1) réussit aussi la tentative où les autres ont cassé.
-// mode "auMoins" : la dernière copie obtient au moins `cible` réussites d'affilée (sert au relais).
-function convient(h, cle0, cible, copies, mode) {
-  if (copies === 1) {
-    // cas courant : uniquement des premières tentatives, pas besoin de mémoriser les graines
-    for (let i = 0; i < cible; i++) if (premiereValeur((h + cle0 + i) | 0) > CHANCE_REUSSITE) return false;
-    if (mode === "auMoins") return true;
-    return premiereValeur((h + cle0 + cible) | 0) > CHANCE_REUSSITE;
-  }
-  const graines = new Map();
-  const tenter = (i) => {
-    const [v, suivante] = tirage(graines.has(i) ? graines.get(i) : (h + cle0 + i) | 0);
-    graines.set(i, suivante);
-    return v <= CHANCE_REUSSITE;
-  };
-  for (let c = 0; c < copies; c++) {
-    const derniere = c === copies - 1;
-    if (mode === "auMoins") {
-      let i = 0;
-      while (i < MAX_TENTATIVES && tenter(i)) {
-        i++;
-        if (derniere && i >= cible) return true;
-      }
-      if (derniere) return false;
-    } else {
-      for (let i = 0; i < cible; i++) if (!tenter(i)) return false;
-      const ok = tenter(cible);
-      if (derniere ? !ok : ok) return false;
-    }
-  }
-  return mode === "exact";
+// Un nouveau personnage n'a aucune graine enregistrée : tant qu'il réussit, chaque tentative vise un nouveau niveau,
+// donc une clé jamais utilisée, et son tirage ne dépend que du nom. h est le hachage du nom, cle0 la clé du premier
+// niveau visé. mode "exact" : exactement `cible` réussites puis un raté ; "auMoins" : au moins `cible` réussites.
+function convient(h, cle0, cible, mode, chance = REGLES_DEFAUT.chance) {
+  const c = Math.fround(chance);
+  for (let i = 0; i < cible; i++) if (premiereValeur((h + cle0 + i) | 0) > c) return false;
+  return mode === "auMoins" || premiereValeur((h + cle0 + cible) | 0) > c;
 }
 
 // Parcourt les noms d'une longueur donnée dans l'ordre, à partir de l'indice `debut`, et appelle rappel(indices, h)
-// où indices donne la position de chaque caractère dans l'alphabet. Le rappel renvoie true pour arrêter. Renvoie le nombre de noms examinés.
+// où indices donne la position de chaque caractère dans l'alphabet. Le rappel renvoie true pour arrêter.
 function parcourirNoms(alphabet, longueur, debut, rappel) {
   const k = alphabet.length;
   const codes = Array.from(alphabet, (c) => c.charCodeAt(0));
@@ -159,5 +142,5 @@ function parcourirNoms(alphabet, longueur, debut, rappel) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { hachage, tirage, premiereValeur, simuler, convient, parcourirNoms, ALPHABETS, MAX_SERIE, CHANCE_REUSSITE };
+  module.exports = { hachage, tirage, premiereValeur, issue, simuler, convient, parcourirNoms, ALPHABETS, MAX_SERIE, REGLES_DEFAUT };
 }

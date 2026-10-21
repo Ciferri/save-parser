@@ -13,7 +13,7 @@ const VERSION_JOUEUR = 34;
 const NB_STATS = 205;
 const NB_JEUX = 10;
 // Jeux de statistiques utilisés par les succès (0 = brut, jamais utilisé par les succès)
-const JEU = { tous: 1, normal: 6, difficile: 7 };
+const JEU_STATS = { tous: 1, normal: 6, difficile: 7 };
 
 class ErreurSauvegarde extends Error {}
 
@@ -115,11 +115,12 @@ function lireJoueur(l, fin) {
   for (let n = l.compte(); n > 0; n--) { l.chaine(); l.chaine(); } // données personnalisées
   l.sauter(12);                               // endurance, eitr max, eitr
   l.sauter(l.compte());                       // état du menu de construction
-  l.sauter(l.compte() * 8);                   // compteurs de butin
-  const graines = new Map();
+  const compteurs = new Map();                // compteurs de butin rare : clé -> nombre de mises à mort restantes
+  for (let n = l.compte(); n > 0; n--) { const cle = l.i32(); compteurs.set(cle, l.i32()); }
+  const graines = new Map();                  // graines de la Forge du potentiel : clé -> graine
   for (let n = l.compte(); n > 0; n--) { const cle = l.i32(); graines.set(cle, l.i32()); }
   if (l.pos !== fin) throw new ErreurSauvegarde("les données du joueur ont une forme inattendue, le site doit être mis à jour.");
-  return { inventaire, graines };
+  return { inventaire, graines, compteurs };
 }
 
 // Lit tout le fichier. Les statistiques sont toujours renvoyées ; si les données du joueur ne peuvent pas être lues,
@@ -169,4 +170,4 @@ function lireSauvegarde(octets) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { lireSauvegarde, ErreurSauvegarde, JEU };
+if (typeof module !== "undefined") module.exports = { lireSauvegarde, ErreurSauvegarde, JEU_STATS };
