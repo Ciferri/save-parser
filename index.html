@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analyseur de sauvegarde Valheim</title>
+  <meta name="description" content="Succès manquants, prédiction des améliorations à la Forge du potentiel et recherche de noms de personnage pour Valheim.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="entete">
+    <h1>Analyseur de sauvegarde Valheim</h1>
+    <p>Lit votre fichier de personnage <code>.fch</code> directement dans le navigateur : rien n'est envoyé sur Internet et le fichier n'est jamais modifié.</p>
+  </header>
+
+  <nav class="onglets" role="tablist" aria-label="Outils">
+    <button role="tab" id="t-succes" aria-controls="succes" aria-selected="true">Succès</button>
+    <button role="tab" id="t-predicteur" aria-controls="predicteur" aria-selected="false" tabindex="-1">Prédicteur d'amélioration</button>
+    <button role="tab" id="t-noms" aria-controls="noms" aria-selected="false" tabindex="-1">Chercheur de noms</button>
+    <button role="tab" id="t-relais" aria-controls="relais" aria-selected="false" tabindex="-1">Planificateur de relais</button>
+    <button role="tab" id="t-aide" aria-controls="aide" aria-selected="false" tabindex="-1">Où est mon fichier ?</button>
+  </nav>
+
+  <main>
+    <!-- ================= Succès ================= -->
+    <section id="succes" role="tabpanel" aria-labelledby="t-succes">
+      <h2>Chasseur de succès</h2>
+      <p>Déposez votre personnage pour voir ce qu'il vous manque : boss, mini-boss, créatures, trophées, poissons et façons de mourir.
+        Les objets fabriqués, constructions et aliments mangés sont aussi listés.</p>
+      <label class="depot" data-depot="succes">
+        <input type="file" accept=".fch,.old" hidden>
+        <span>Glissez un fichier <code>.fch</code> ici ou <u>cliquez pour le choisir</u></span>
+      </label>
+      <div class="options" id="succes-options" hidden>
+        <label>Je suis actuellement dans :
+          <select id="succes-biome"></select>
+        </label>
+        <label><input type="checkbox" id="succes-tout"> Afficher aussi ce qui est fait</label>
+      </div>
+      <div id="succes-resultat" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= Prédicteur ================= -->
+    <section id="predicteur" role="tabpanel" aria-labelledby="t-predicteur" hidden>
+      <h2>Prédicteur d'amélioration</h2>
+      <p>À la Forge du potentiel, chaque tentative d'amélioration ne dépend que du nom du personnage et des graines enregistrées
+        dans son fichier. Ce tableau rejoue ces tentatives : combien d'améliorations chaque objet obtiendra avant de casser.</p>
+      <label class="depot" data-depot="predicteur">
+        <input type="file" accept=".fch,.old" hidden>
+        <span>Glissez un fichier <code>.fch</code> ici ou <u>cliquez pour le choisir</u></span>
+      </label>
+      <div id="predicteur-resultat" aria-live="polite"></div>
+
+      <h3>Sans fichier : un objet pour un nouveau personnage</h3>
+      <form id="form-prediction" class="formulaire">
+        <label>Objet <input list="liste-objets" name="objet" required placeholder="ex. Épée en fer"></label>
+        <label>Qualité actuelle <input type="number" name="qualite" min="1" max="65535" value="1" required></label>
+        <label>Nom du personnage <input name="nom" required placeholder="ex. Ragnar"></label>
+        <button type="submit">Prédire</button>
+      </form>
+      <div id="prediction-resultat" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= Noms ================= -->
+    <section id="noms" role="tabpanel" aria-labelledby="t-noms" hidden>
+      <h2>Chercheur de noms</h2>
+      <p>Un nouveau personnage n'a aucune graine enregistrée : ses premières tentatives sont fixées par son nom.
+        Cet outil cherche des noms qui obtiennent exactement le nombre d'améliorations voulu (8 au maximum) avant de casser l'objet.
+        Le jeu respecte la casse du nom : tapez-le exactement comme indiqué.</p>
+      <form id="form-noms" class="formulaire">
+        <label>Objet <input list="liste-objets" name="objet" required placeholder="ex. Bâton de protection"></label>
+        <label>Qualité de départ <input type="number" name="qualite" min="1" max="65535" value="1" required></label>
+        <label>Améliorations voulues
+          <select name="cible"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            <option>6</option><option>7</option><option selected>8</option></select></label>
+        <label>Copies de l'objet
+          <select name="copies"><option value="1" selected>1</option><option value="2">2 (lent)</option><option value="3">3 (très lent)</option></select></label>
+        <label>Caractères
+          <select name="alphabet"><option value="lettres" selected>Lettres (A-Z, a-z)</option>
+            <option value="minuscules">Minuscules (a-z)</option><option value="alphanum">Lettres et chiffres</option></select></label>
+        <label>Nombre de noms <input type="number" name="limite" min="1" max="100" value="10"></label>
+        <button type="submit">Chercher</button>
+        <button type="button" id="noms-stop" hidden>Arrêter</button>
+      </form>
+      <p class="aide-petite">Avec plusieurs copies, chaque copie sauf la dernière obtient exactement ce nombre d'améliorations puis casse ;
+        la dernière franchit ensuite le niveau où les autres ont cassé.</p>
+      <div id="noms-resultat" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= Relais ================= -->
+    <section id="relais" role="tabpanel" aria-labelledby="t-relais" hidden>
+      <h2>Planificateur de relais</h2>
+      <p>Trouve une chaîne de nouveaux personnages qui amène un objet d'une qualité à une autre sans jamais le casser :
+        chaque personnage ne fait que les améliorations que ses tirages réussissent, puis transmet l'objet au suivant.</p>
+      <form id="form-relais" class="formulaire">
+        <label>Objet <input list="liste-objets" name="objet" required></label>
+        <label>Qualité actuelle <input type="number" name="depart" min="1" max="65535" value="1" required></label>
+        <label>Qualité visée <input type="number" name="arrivee" min="2" max="65535" value="10" required></label>
+        <button type="submit">Planifier</button>
+        <button type="button" id="relais-stop" hidden>Arrêter</button>
+      </form>
+      <div id="relais-resultat" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= Aide ================= -->
+    <section id="aide" role="tabpanel" aria-labelledby="t-aide" hidden>
+      <h2>Où se trouve mon fichier de personnage ?</h2>
+      <div id="aide-contenu"></div>
+    </section>
+  </main>
+
+  <template id="tpl-aide">
+    <details class="ou-fichier">
+      <summary>Où se trouve mon fichier <code>.fch</code> ?</summary>
+      <h4>Sauvegarde locale (Steam Cloud désactivé)</h4>
+      <ul>
+        <li>Windows : <code>%USERPROFILE%\AppData\LocalLow\IronGate\Valheim\characters_local</code></li>
+        <li>Linux : <code>~/.config/unity3d/IronGate/Valheim/characters_local</code></li>
+      </ul>
+      <h4>Sauvegarde Steam Cloud</h4>
+      <p>Steam la range dans son propre dossier :
+        <code>&lt;dossier Steam&gt;/userdata/&lt;numéro de compte&gt;/892970/remote/characters</code></p>
+      <ul>
+        <li>Le dossier Steam est en général <code>C:\Program Files (x86)\Steam</code> sous Windows, ou <code>~/.steam/steam</code> sous Linux et Steam Deck.</li>
+        <li>Le numéro de compte est le dossier numérique dans <code>userdata</code> ; s'il y en a plusieurs, prenez le plus récemment modifié.</li>
+        <li><code>892970</code> est l'identifiant Steam de Valheim. Une recherche de ce nombre dans <code>userdata</code> mène directement au bon dossier.</li>
+      </ul>
+      <p>Le fichier porte le nom du personnage (ex. <code>Ragnar.fch</code>). Utilisez le <code>.fch</code> simple, pas les copies
+        <code>.old</code> ni <code>_backup_</code>. Le site ne fait que lire le fichier.</p>
+    </details>
+  </template>
+
+  <datalist id="liste-objets"></datalist>
+
+  <footer class="pied">
+    <p>Projet indépendant, non affilié à Iron Gate. Les noms français des objets et créatures sont des traductions de ce site
+      et peuvent différer légèrement de ceux du jeu.</p>
+  </footer>
+
+  <script src="js/donnees.js"></script>
+  <script src="js/forge.js"></script>
+  <script src="js/fch.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
