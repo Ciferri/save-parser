@@ -75,42 +75,54 @@ function ouvrirAncre() {
 window.addEventListener("hashchange", ouvrirAncre);
 ouvrirAncre();
 
-// l'aide « où est mon fichier » sous chaque grande zone de dépôt et dans son onglet
+// l'aide « où est mon fichier » sous la zone de dépôt et dans son onglet
 const tplAide = $("#tpl-aide");
-for (const zone of document.querySelectorAll(".depot:not(.petit)")) zone.after(tplAide.content.cloneNode(true));
+$("#depot-global").after(tplAide.content.cloneNode(true));
 const aidePage = tplAide.content.cloneNode(true);
 aidePage.querySelector("details").open = true;
 $("#aide-contenu").append(aidePage);
 
-// ---------- dépôt de fichiers ----------
+// ---------- fichier de personnage (commun à tous les onglets) ----------
 
+// chaque outil s'inscrit ici et reçoit la sauvegarde lue une seule fois
 const actionsDepot = {};
+const zoneDepot = $("#depot-global");
 
-for (const zone of document.querySelectorAll(".depot")) {
-  const entree = $("input", zone);
-  const lire = async (fichier) => {
-    if (!fichier) return;
-    zone.querySelector("span").textContent = `Fichier : ${fichier.name}`;
-    actionsDepot[zone.dataset.depot](new Uint8Array(await fichier.arrayBuffer()));
-  };
-  entree.addEventListener("change", () => lire(entree.files[0]));
-  zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("survol"); });
-  zone.addEventListener("dragleave", () => zone.classList.remove("survol"));
-  zone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    zone.classList.remove("survol");
-    lire(e.dataTransfer.files[0]);
-  });
-}
-
-function lireOuErreur(octets, cible) {
+async function chargerFichier(fichier) {
+  if (!fichier) return;
+  $("#perso-erreur").innerHTML = "";
+  let s;
   try {
-    return lireSauvegarde(octets);
+    s = lireSauvegarde(new Uint8Array(await fichier.arrayBuffer()));
   } catch (e) {
-    cible.innerHTML = erreur("Lecture impossible : " + e.message);
-    return null;
+    $("#perso-erreur").innerHTML = erreur(`Lecture de ${fichier.name} impossible : ${e.message}`);
+    return;
   }
+  zoneDepot.hidden = true;
+  const bandeau = $("#perso-charge");
+  bandeau.hidden = false;
+  bandeau.innerHTML = `<span>Personnage : <strong>${echapper(s.nom || fichier.name)}</strong>
+    <small>(${echapper(fichier.name)})</small></span><button type="button" id="changer-perso">Changer de fichier</button>
+    ${s.avertissement ? `<p class="attention">${echapper(s.avertissement)}</p>` : ""}
+    ${s.erreurJoueur ? `<p class="attention">Inventaire et graines illisibles : ${echapper(s.erreurJoueur)} Seul l'onglet Succès est disponible.</p>` : ""}`;
+  $("#changer-perso").addEventListener("click", () => $("input", zoneDepot).click());
+  for (const action of Object.values(actionsDepot)) action(s);
 }
+
+const entreeFichier = $("input", zoneDepot);
+entreeFichier.addEventListener("change", () => { chargerFichier(entreeFichier.files[0]); entreeFichier.value = ""; });
+// on peut déposer le fichier n'importe où sur la page
+document.addEventListener("dragover", (e) => { e.preventDefault(); zoneDepot.classList.add("survol"); });
+document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) zoneDepot.classList.remove("survol"); });
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  zoneDepot.classList.remove("survol");
+  chargerFichier(e.dataTransfer.files[0]);
+});
+
+// message affiché dans un onglet tant qu'aucun fichier n'est chargé
+const SANS_FICHIER = `<p class="aide-petite">Chargez votre fichier de personnage en haut de la page.</p>`;
+for (const id of ["#succes-resultat", "#predicteur-resultat"]) $(id).innerHTML = SANS_FICHIER;
 
 // ---------- succès ----------
 
@@ -121,10 +133,10 @@ selBiome.value = String(BIOMES.length - 1);
 selBiome.addEventListener("change", afficherSucces);
 $("#succes-tout").addEventListener("change", afficherSucces);
 
-actionsDepot.succes = (octets) => {
-  sauvegardeSucces = lireOuErreur(octets, $("#succes-resultat"));
-  $("#succes-options").hidden = !sauvegardeSucces;
-  if (sauvegardeSucces) afficherSucces();
+actionsDepot.succes = (s) => {
+  sauvegardeSucces = s;
+  $("#succes-options").hidden = false;
+  afficherSucces();
 };
 
 // Chaque liste : éléments { cle, nom, biome?, detail? } et `fait` qui donne le compteur de chaque clé.
@@ -213,10 +225,8 @@ const enteteTableau = `<table class="tableau"><thead><tr><th>Objet</th><th>Quali
 const legende = `<p class="legende">▲ réussite (niveau atteint) · ▼ échec, l'objet perd un niveau · ✖ l'objet est détruit.
   Survolez une étape pour voir le tirage. « S'arrêter à » est le meilleur niveau atteint avant la casse.</p>`;
 
-actionsDepot.predicteur = (octets) => {
+actionsDepot.predicteur = (s) => {
   const cible = $("#predicteur-resultat");
-  const s = lireOuErreur(octets, cible);
-  if (!s) return;
   if (!s.joueur) { cible.innerHTML = erreur(s.erreurJoueur); return; }
   const sims = s.joueur.inventaire.filter((o) => PAR_HACHAGE.has(o.prefab)).map((o) => {
     const p = PAR_HACHAGE.get(o.prefab);
@@ -370,10 +380,8 @@ $("#relais-stop").addEventListener("click", () => {
 
 let persoCout = null;     // { nom, graines } lus dans un fichier
 
-actionsDepot.cout = (octets) => {
+actionsDepot.cout = (s) => {
   const cible = $("#cout-resultat");
-  const s = lireOuErreur(octets, cible);
-  if (!s) return;
   if (!s.joueur) { cible.innerHTML = erreur(s.erreurJoueur); return; }
   persoCout = { nom: s.nom, graines: s.joueur.graines };
   $("#form-cout").nom.value = s.nom;
@@ -429,9 +437,7 @@ for (const l of LIGNES_BUTIN) {
 }
 let compteursButin = null;
 
-actionsDepot.butins = (octets) => {
-  const s = lireOuErreur(octets, $("#butins-resultat"));
-  if (!s) return;
+actionsDepot.butins = (s) => {
   if (!s.joueur) { $("#butins-resultat").innerHTML = erreur(s.erreurJoueur); return; }
   compteursButin = { nom: s.nom, compteurs: s.joueur.compteurs };
   afficherButins();

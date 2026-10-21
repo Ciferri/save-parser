@@ -13,6 +13,15 @@
     <p>Lit votre fichier de personnage <code>.fch</code> directement dans le navigateur : rien n'est envoyé sur Internet et le fichier n'est jamais modifié.</p>
   </header>
 
+  <section class="perso" aria-label="Fichier de personnage">
+    <label class="depot" id="depot-global">
+      <input type="file" accept=".fch,.old" hidden>
+      <span>Glissez votre fichier <code>.fch</code> ici ou <u>cliquez pour le choisir</u> : il sert à tous les onglets</span>
+    </label>
+    <div id="perso-charge" hidden></div>
+    <div id="perso-erreur" aria-live="polite"></div>
+  </section>
+
   <nav class="onglets" role="tablist" aria-label="Outils">
     <button role="tab" id="t-succes" aria-controls="succes" aria-selected="true">Succès</button>
     <button role="tab" id="t-predicteur" aria-controls="predicteur" aria-selected="false" tabindex="-1">Prédicteur</button>
@@ -27,12 +36,8 @@
     <!-- ================= Succès ================= -->
     <section id="succes" role="tabpanel" aria-labelledby="t-succes">
       <h2>Chasseur de succès</h2>
-      <p>Déposez votre personnage pour voir ce qu'il vous manque pour chaque succès : objets à fabriquer, armes, plats,
+      <p>Chargez votre personnage en haut de la page pour voir ce qu'il vous manque pour chaque succès : objets à fabriquer, armes, plats,
         aliments à goûter, pièces à construire, créatures et boss à vaincre, trophées, poissons et façons de mourir.</p>
-      <label class="depot" data-depot="succes">
-        <input type="file" accept=".fch,.old" hidden>
-        <span>Glissez un fichier <code>.fch</code> ici ou <u>cliquez pour le choisir</u></span>
-      </label>
       <div class="options" id="succes-options" hidden>
         <label>Je suis actuellement dans :
           <select id="succes-biome"></select>
@@ -48,10 +53,6 @@
       <p>À la Forge du potentiel, chaque tentative ne dépend que du nom du personnage et des graines enregistrées dans son
         fichier. Une réussite fait gagner un niveau ; un échec en fait perdre un, ou détruit l'objet. Ce tableau rejoue
         les tentatives : jusqu'où chaque objet peut monter, et quand s'arrêter.</p>
-      <label class="depot" data-depot="predicteur">
-        <input type="file" accept=".fch,.old" hidden>
-        <span>Glissez un fichier <code>.fch</code> ici ou <u>cliquez pour le choisir</u></span>
-      </label>
       <div id="predicteur-resultat" aria-live="polite"></div>
 
       <h3>Sans fichier : un objet pour un nouveau personnage</h3>
@@ -112,13 +113,9 @@
       <form id="form-cout" class="formulaire">
         <label>Objet <input list="liste-objets" name="objet" required placeholder="ex. Épée en fer"></label>
         <label>Qualité visée <input type="number" name="cible" min="2" max="65535" value="10" required></label>
-        <label>Nom du personnage <input name="nom" placeholder="ou déposez son fichier ci-dessous"></label>
+        <label>Nom du personnage <input name="nom" placeholder="ou chargez son fichier en haut"></label>
         <button type="submit">Calculer</button>
       </form>
-      <label class="depot petit" data-depot="cout">
-        <input type="file" accept=".fch,.old" hidden>
-        <span>Facultatif : déposez le <code>.fch</code> pour utiliser son nom et ses graines déjà enregistrées</span>
-      </label>
       <div id="cout-resultat" aria-live="polite"></div>
     </section>
 
@@ -128,10 +125,6 @@
       <p>Un butin dont la chance (après étoiles, chaque étoile la doublant) est de 30 % ou moins n'est pas laissé au hasard :
         le personnage garde un compteur, et la mise à mort qui l'épuise donne l'objet. Le compteur appartient à l'objet et à
         sa chance finale : les créatures qui donnent le même objet à la même chance le partagent.</p>
-      <label class="depot" data-depot="butins">
-        <input type="file" accept=".fch,.old" hidden>
-        <span>Glissez un fichier <code>.fch</code> ici ou <u>cliquez pour le choisir</u></span>
-      </label>
       <div class="options">
         <label>Filtrer (créature ou objet) <input id="butins-filtre" type="search" placeholder="ex. trophée, naingris"></label>
         <label>Trier
