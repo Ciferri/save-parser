@@ -28,6 +28,7 @@
     <button role="tab" id="t-noms" aria-controls="noms" aria-selected="false" tabindex="-1">Chercheur de noms</button>
     <button role="tab" id="t-relais" aria-controls="relais" aria-selected="false" tabindex="-1">Relais</button>
     <button role="tab" id="t-cout" aria-controls="cout" aria-selected="false" tabindex="-1">Coût d'amélioration</button>
+    <button role="tab" id="t-idoles" aria-controls="idoles" aria-selected="false" tabindex="-1">Idoles</button>
     <button role="tab" id="t-butins" aria-controls="butins" aria-selected="false" tabindex="-1">Compteurs de butin</button>
     <button role="tab" id="t-aide" aria-controls="aide" aria-selected="false" tabindex="-1">Où est mon fichier ?</button>
   </nav>
@@ -117,6 +118,21 @@
         <button type="submit">Calculer</button>
       </form>
       <div id="cout-resultat" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= Idoles ================= -->
+    <section id="idoles" role="tabpanel" aria-labelledby="t-idoles" hidden>
+      <h2>Que puis-je améliorer avec mes idoles ?</h2>
+      <p>Chaque tentative à la Forge du potentiel consomme une idole. Il en existe une par matériau, en deux versions :
+        <strong>Protection</strong> pour les armures, capes et boucliers, <strong>Combat</strong> pour les armes et les outils.
+        Choisissez une idole pour voir les objets qu'elle permet d'améliorer. Avec votre fichier chargé, vos idoles et
+        vos objets sont signalés.</p>
+      <div class="options">
+        <label>Idole <select id="idoles-choix"></select></label>
+        <label>Filtrer les objets <input id="idoles-filtre" type="search" placeholder="ex. hache, cape"></label>
+        <label><input type="checkbox" id="idoles-miens"> Seulement mes objets</label>
+      </div>
+      <div id="idoles-resultat" aria-live="polite"></div>
     </section>
 
     <!-- ================= Butins ================= -->

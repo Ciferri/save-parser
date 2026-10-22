@@ -479,3 +479,73 @@ function afficherButins() {
   $("#butins-resultat").innerHTML = html;
 }
 afficherButins();
+
+// ---------- idoles ----------
+
+// idole -> objets qu'elle améliore (chaque recette d'amélioration en demande une)
+const IDOLES = new Map();
+for (const [p, info] of Object.entries(JEU.ameliorables)) {
+  const r = info.res.find((x) => x[3]);
+  if (!r) continue;
+  if (!IDOLES.has(r[0])) IDOLES.set(r[0], []);
+  IDOLES.get(r[0]).push(p);
+}
+// ordre : par palier (le chiffre du prefab, ex. Upgrader4Armor), protection avant combat
+const palier = (p) => Number((p.match(/\d+/) || [99])[0]);
+const ORDRE_IDOLES = [...IDOLES.keys()].sort((a, b) => palier(a) - palier(b) || (/Armor/.test(b) - /Armor/.test(a)));
+function nomIdole(p) {
+  const brut = nomPrefab(p);
+  const type = /Armor/.test(p) ? "Protection" : "Combat";
+  const matiere = brut.replace(/\s*(Protection|Combat)\s*Idole\s*$/i, "").trim();
+  return matiere && matiere !== brut ? `Idole de ${type.toLowerCase()} — ${matiere}` : brut;
+}
+
+const selIdole = $("#idoles-choix");
+selIdole.innerHTML = `<option value="">Toutes les idoles</option>` +
+  ORDRE_IDOLES.map((p) => `<option value="${p}">${echapper(nomIdole(p))} (${IDOLES.get(p).length})</option>`).join("");
+let inventaireIdoles = null;    // { nom, parHachage: Map hachage -> [objets de l'inventaire] }
+
+actionsDepot.idoles = (s) => {
+  if (!s.joueur) { inventaireIdoles = null; afficherIdoles(); return; }
+  const parHachage = new Map();
+  for (const o of s.joueur.inventaire) {
+    if (!parHachage.has(o.prefab)) parHachage.set(o.prefab, []);
+    parHachage.get(o.prefab).push(o);
+  }
+  inventaireIdoles = { nom: s.nom, parHachage };
+  // par défaut, l'idole la plus utile : celle qui sert au plus d'objets de l'inventaire
+  const utile = ORDRE_IDOLES.map((p) => [p, IDOLES.get(p).filter((x) => parHachage.has(hachage(x))).length]).sort((a, b) => b[1] - a[1])[0];
+  if (utile && utile[1] && !selIdole.value) selIdole.value = utile[0];
+  afficherIdoles();
+};
+for (const el of [selIdole, $("#idoles-filtre"), $("#idoles-miens")]) el.addEventListener(el.tagName === "INPUT" && el.type === "search" ? "input" : "change", afficherIdoles);
+
+function afficherIdoles() {
+  const filtre = sansAccents($("#idoles-filtre").value.trim());
+  const miens = $("#idoles-miens").checked;
+  const inv = inventaireIdoles;
+  const possede = (p) => (inv && inv.parHachage.get(hachage(p))) || [];
+  const choix = selIdole.value ? [selIdole.value] : ORDRE_IDOLES;
+  let html = "";
+  if (inv) {
+    const mesIdoles = ORDRE_IDOLES.map((p) => [p, possede(p).reduce((n, o) => n + o.pile, 0)]).filter(([, n]) => n);
+    html += `<div class="resume"><p><strong>${echapper(inv.nom)}</strong> · idoles dans l'inventaire : ${mesIdoles.length
+      ? mesIdoles.map(([p, n]) => `${echapper(nomIdole(p))} ×${n}`).join(", ") : "aucune"}</p></div>`;
+  }
+  for (const idole of choix) {
+    const objets = IDOLES.get(idole).map((p) => ({ p, info: JEU.ameliorables[p], miens: possede(p) }))
+      .filter((o) => (!filtre || sansAccents(o.info.nom).includes(filtre) || o.p.toLowerCase().includes(filtre)) && (!miens || o.miens.length))
+      .sort((a, b) => (b.miens.length > 0) - (a.miens.length > 0) || comparer(a.info.nom, b.info.nom));
+    if (!objets.length && (filtre || miens)) continue;
+    const stock = possede(idole).reduce((n, o) => n + o.pile, 0);
+    html += `<details class="section-succes" ${choix.length === 1 || objets.some((o) => o.miens.length) ? "open" : ""}>
+      <summary><span>${echapper(nomIdole(idole))}</span><span class="compteur">${inv ? `${stock} en stock · ` : ""}${objets.length} objet(s)</span></summary>
+      <table class="tableau"><thead><tr><th>Objet</th><th>Station</th><th>Sans risque jusqu'à</th>${inv ? "<th>Dans l'inventaire</th>" : ""}</tr></thead><tbody>
+      ${objets.map((o) => `<tr><td>${echapper(o.info.nom)}${o.info.actif ? "" : ' <small class="aide-petite">(recette désactivée)</small>'}</td>
+        <td>${echapper(o.info.station || "à la main")}</td><td class="num">q${o.info.plafond}</td>
+        ${inv ? `<td>${o.miens.length ? o.miens.map((x) => `<span class="pastille">q${x.qualite}${x.equipe ? " équipé" : ""}</span>`).join(" ") : ""}</td>` : ""}</tr>`).join("")}
+      </tbody></table></details>`;
+  }
+  $("#idoles-resultat").innerHTML = html || `<p class="aide-petite">Aucun objet ne correspond.</p>`;
+}
+afficherIdoles();

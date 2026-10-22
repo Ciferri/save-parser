@@ -3,3 +3,4 @@
 *.fch.old
 extraction/
 __pycache__/
+.claude/
