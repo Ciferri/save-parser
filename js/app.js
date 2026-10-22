@@ -209,28 +209,39 @@ function etapesHtml(etapes) {
     ${e.issue === "reussite" ? "▲" : e.issue === "casse" ? "✖" : "▼"} ${e.issue === "echec" ? e.vers - 2 : e.vers}</li>`).join("")}</ol>`;
 }
 
+// La Forge du potentiel n'accepte un objet qu'au maximum de sa station : en dessous, on l'y monte d'abord, sans risque.
+const plafondDe = (p) => JEU.ameliorables[p].plafond;
+function simulerForge(p, qualite, nom, graines = new Map()) {
+  const depart = Math.max(qualite, plafondDe(p));
+  const sim = simuler(p, depart, nom, graines, { regles: reglesDe(p) });
+  if (depart > qualite) sim.station = { de: qualite, nom: JEU.ameliorables[p].station || "la station" };
+  return sim;
+}
+
 function conseil(sim) {
   if (sim.pic === sim.depart) return sim.casse ? "casse sans progresser" : "aucun gain";
   return `<strong>q${sim.pic}</strong> après ${sim.picApres} tentative(s)`;
 }
 
 function ligneSimulation(sim, extra = "") {
-  return `<tr><td>${echapper(nomPrefab(sim.prefab))}${extra}</td><td class="num">${sim.depart}</td>
+  const avant = sim.station ? `<br><small class="aide-petite">q${sim.station.de} → q${sim.depart} à : ${echapper(sim.station.nom)}, sans risque</small>` : "";
+  return `<tr><td>${echapper(nomPrefab(sim.prefab))}${extra}</td><td class="num">${sim.station ? `${sim.station.de} → ` : ""}${sim.depart}${avant}</td>
     <td class="num">${conseil(sim)}</td>
     <td class="num">${sim.casse ? `casse après ${sim.etapes.length} tentative(s)` : `ne casse pas en ${sim.etapes.length}`}</td>
     <td>${etapesHtml(sim.etapes)}</td></tr>`;
 }
 
-const enteteTableau = `<table class="tableau"><thead><tr><th>Objet</th><th>Qualité</th><th>S'arrêter à</th><th>Issue si on continue</th><th>Déroulé</th></tr></thead><tbody>`;
+const enteteTableau = `<table class="tableau"><thead><tr><th>Objet</th><th>Qualité à la Forge</th><th>S'arrêter à</th><th>Issue si on continue</th><th>Déroulé</th></tr></thead><tbody>`;
 const legende = `<p class="legende">▲ réussite (niveau atteint) · ▼ échec, l'objet perd un niveau · ✖ l'objet est détruit.
-  Survolez une étape pour voir le tirage. « S'arrêter à » est le meilleur niveau atteint avant la casse.</p>`;
+  Survolez une étape pour voir le tirage. « S'arrêter à » est le meilleur niveau atteint avant la casse.
+  La Forge du potentiel n'accepte un objet qu'au maximum de sa station : un objet en dessous y est d'abord monté, sans tirage.</p>`;
 
 actionsDepot.predicteur = (s) => {
   const cible = $("#predicteur-resultat");
   if (!s.joueur) { cible.innerHTML = erreur(s.erreurJoueur); return; }
   const sims = s.joueur.inventaire.filter((o) => PAR_HACHAGE.has(o.prefab)).map((o) => {
     const p = PAR_HACHAGE.get(o.prefab);
-    return { sim: simuler(p, o.qualite, s.nom, s.joueur.graines, { regles: reglesDe(p) }), objet: o };
+    return { sim: simulerForge(p, o.qualite, s.nom, s.joueur.graines), objet: o };
   }).sort((a, b) => (b.sim.pic - b.sim.depart) - (a.sim.pic - a.sim.depart) || comparer(nomPrefab(a.sim.prefab), nomPrefab(b.sim.prefab)));
 
   let html = `<div class="resume"><p><strong>${echapper(s.nom)}</strong> · ${nombre(s.joueur.graines.size)} graine(s) d'amélioration enregistrée(s)</p></div>`;
@@ -239,11 +250,11 @@ actionsDepot.predicteur = (s) => {
     html += enteteTableau + sims.map(({ sim, objet }) =>
       ligneSimulation(sim, (objet.equipe ? ' <small class="pastille">équipé</small>' : "") + (objet.pile > 1 ? ` <small>×${objet.pile}</small>` : ""))).join("") + "</tbody></table>";
   }
-  html += legende + `<p><button type="button" id="predire-tout">Voir tous les objets améliorables depuis la qualité 1 pour ce personnage</button></p>
+  html += legende + `<p><button type="button" id="predire-tout">Voir tous les objets améliorables pour ce personnage (depuis le maximum de leur station)</button></p>
     <div id="predire-tout-resultat"></div>`;
   cible.innerHTML = html;
   $("#predire-tout").addEventListener("click", () => {
-    const toutes = AMELIORABLES.map(([p]) => simuler(p, 1, s.nom, s.joueur.graines, { regles: reglesDe(p) }))
+    const toutes = AMELIORABLES.map(([p]) => simulerForge(p, 1, s.nom, s.joueur.graines))
       .sort((a, b) => b.pic - a.pic || comparer(nomPrefab(a.prefab), nomPrefab(b.prefab)));
     $("#predire-tout-resultat").innerHTML = enteteTableau + toutes.map((x) => ligneSimulation(x)).join("") + "</tbody></table>";
   });
@@ -256,7 +267,7 @@ $("#form-prediction").addEventListener("submit", (e) => {
     const prefab = trouverObjet(f.get("objet"));
     const nom = f.get("nom");
     if (!nom) throw new Error("indiquez un nom de personnage");
-    const sim = simuler(prefab, qualiteValide(f.get("qualite"), "La qualité"), nom, new Map(), { regles: reglesDe(prefab) });
+    const sim = simulerForge(prefab, qualiteValide(f.get("qualite"), "La qualité"), nom);
     cible.innerHTML = `<p>Pour un nouveau personnage nommé <strong>${echapper(nom)}</strong> :</p>` + enteteTableau + ligneSimulation(sim) + "</tbody></table>" + legende;
   } catch (err) {
     cible.innerHTML = erreur(err.message);
@@ -321,8 +332,12 @@ $("#form-noms").addEventListener("submit", (e) => {
   $("#noms-resultat").innerHTML = "";
   try {
     const prefab = trouverObjet(f.get("objet"));
+    const qualite = qualiteValide(f.get("qualite"), "La qualité de départ");
+    const depart = Math.max(qualite, plafondDe(prefab));
+    if (depart > qualite) $("#noms-resultat").innerHTML = `<p class="aide-petite">La Forge n'accepte cet objet qu'à partir de q${depart}
+      (maximum à ${echapper(JEU.ameliorables[prefab].station || "sa station")}) : montez-le d'abord jusque-là, la recherche part de q${depart}.</p>`;
     rechercherNoms({
-      prefab, qualite: qualiteValide(f.get("qualite"), "La qualité de départ"), regles: reglesDe(prefab),
+      prefab, qualite: depart, regles: reglesDe(prefab),
       cible: Number(f.get("cible")), mode: f.get("mode"), alphabet: f.get("alphabet"),
       longueurMin: 3, longueurMax: 15, limite: Math.min(100, Math.max(1, Number(f.get("limite")) || 10)),
       budget: BUDGET, apres: null,
@@ -348,9 +363,13 @@ $("#form-relais").addEventListener("submit", (e) => {
   const f = new FormData(e.target), cible = $("#relais-resultat"), boutonStop = $("#relais-stop");
   try {
     const prefab = trouverObjet(f.get("objet"));
-    const depart = qualiteValide(f.get("depart"), "La qualité actuelle");
+    const actuelle = qualiteValide(f.get("depart"), "La qualité actuelle");
     const arrivee = qualiteValide(f.get("arrivee"), "La qualité visée");
-    if (arrivee <= depart) throw new Error("la qualité visée doit être supérieure à la qualité actuelle");
+    if (arrivee <= actuelle) throw new Error("la qualité visée doit être supérieure à la qualité actuelle");
+    const plafond = plafondDe(prefab), station = JEU.ameliorables[prefab].station || "sa station";
+    if (arrivee <= plafond) throw new Error(`pas besoin de la Forge : q${arrivee} s'obtient sans risque à ${station} (jusqu'à q${plafond})`);
+    const depart = Math.max(actuelle, plafond);
+    const avant = depart > actuelle ? `<li>Montez d'abord l'objet de q${actuelle} à <strong>q${depart}</strong> à ${echapper(station)}, sans risque.</li>` : "";
     cible.innerHTML = `<p class="progression">Recherche du premier personnage…</p>`;
     boutonStop.hidden = false;
     arreterRelais = lancerWorker({ type: "relais", prefab, depart, arrivee, regles: reglesDe(prefab), alphabet: "lettres", budget: BUDGET }, {
@@ -359,7 +378,7 @@ $("#form-relais").addEventListener("submit", (e) => {
         boutonStop.hidden = true;
         cible.innerHTML = `<p><strong>${echapper(nomPrefab(prefab))}</strong> de la qualité ${depart} à ${arrivee} :
           ${d.plan.length} personnage(s).</p>
-          <ol class="plan">${d.plan.map((p) => `<li>Créez <code>${echapper(p.nom)}</code> et améliorez l'objet de ${p.de} à <strong>${p.a}</strong>
+          <ol class="plan">${avant}${d.plan.map((p) => `<li>Créez <code>${echapper(p.nom)}</code> et améliorez l'objet de ${p.de} à <strong>${p.a}</strong>
             (${p.a - p.de} tentative(s), toutes réussies), puis arrêtez et transmettez l'objet.</li>`).join("")}</ol>
           <p class="aide-petite">Chaque personnage doit être neuf (jamais utilisé à la Forge) et ne doit pas tenter
           d'amélioration au-delà de l'étape indiquée : la suivante pourrait faire perdre un niveau ou détruire l'objet.</p>`;
