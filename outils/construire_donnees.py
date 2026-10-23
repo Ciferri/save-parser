@@ -176,11 +176,18 @@ for b in butins.values():
 for i in range(1, 13):
     if traduit(f"$animal_fish{i}"): NOMS[f"$animal_fish{i}"] = traduit(f"$animal_fish{i}")
 
+# succès à paliers : une ou plusieurs statistiques à atteindre (sauf les listes de morts, affichées à part)
+succes_stats = []
+for d in sorted(achs.values(), key=lambda d: d["m_id"]):
+    if not d["m_statTrigger"] or d["m_id"] in ("DeathByAllTypes", "DeathByTreeAll"): continue
+    succes_stats.append(dict(id=d["m_id"], nom=traduit(d["m_name"]) or d["m_id"], difficulte=d["m_difficultyRequirement"],
+                             seuils=[[t["m_stat"], t["m_amountAboveEquals"]] for t in d["m_statTrigger"]]))
+
 donnees = dict(
     listes=dict(fabriques=sorted(fabriques), armes=sorted(armes), cuisines=sorted(cuisines), manges=sorted(manges),
                 construits=sorted(construits), creatures=sorted(creatures), trophees=sorted(trophees), boss=boss, miniboss=miniboss),
     stations=dict(objets=station_de, pieces=piece_station), noms=NOMS, nomsPrefab=NOMS_PREFAB,
-    ameliorables=ameliorables, butins=butins)
+    ameliorables=ameliorables, butins=butins, succesStats=succes_stats)
 print({k: len(v) for k, v in donnees["listes"].items()}, "améliorables", len(ameliorables), "butins", len(butins),
       "stations max", niveau_max, "fuel", fuel_par, file=sys.stderr)
 with open(SORTIE, "w", encoding="utf8") as f:

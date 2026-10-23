@@ -172,6 +172,40 @@ function listesSucces(s) {
   ];
 }
 
+// Succès à paliers (Survie, Bûcheronnage…) : une statistique du fichier à amener jusqu'à un seuil.
+const STAT_SURVIE = 129;     // jours consécutifs sans mourir (succès « Survie », 30 jours)
+function paliersHtml(s) {
+  const ligne = (a) => {
+    const stats = s.jeux[a.difficulte] ? s.jeux[a.difficulte].stats : s.jeux[JEU_STATS.tous].stats;
+    const parts = a.seuils.map(([i, seuil]) => ({ v: Math.max(0, stats[i]), seuil }));
+    const fait = parts.every((x) => x.v >= x.seuil);
+    const ratio = Math.min(1, ...parts.map((x) => x.v / x.seuil));
+    // plusieurs seuils : chaque compteur, sauf s'il ne s'agit que de cases à cocher (seuils de 1)
+    const detail = parts.length > 1 && parts.every((x) => x.seuil === 1)
+      ? `${parts.filter((x) => x.v >= x.seuil).length} / ${parts.length} conditions`
+      : parts.map((x) => `${nombre(Math.min(x.v, x.seuil))} / ${nombre(x.seuil)}`).join(" · ");
+    return { a, fait, ratio, detail, parts };
+  };
+  const lignes = JEU.succesStats.map(ligne);
+  const survie = lignes.find((l) => l.a.seuils.length === 1 && l.a.seuils[0][0] === STAT_SURVIE);
+  let html = "";
+  if (survie) {
+    const v = Math.floor(survie.parts[0].v), seuil = survie.parts[0].seuil;
+    html += `<div class="resume survie"><p><strong>${echapper(survie.a.nom)}</strong> : ${survie.fait ? "succès obtenu ✔"
+      : `<strong>${v}</strong> jour(s) d'affilée sans mourir, encore <strong>${seuil - v}</strong> jour(s) pour atteindre ${seuil}`}</p>
+      <progress max="1" value="${survie.ratio}"></progress>
+      <p class="aide-petite">Le compteur repart de zéro à chaque mort. Valeur lue à la dernière sauvegarde du personnage.</p></div>`;
+  }
+  const autres = lignes.filter((l) => l !== survie).sort((x, y) => x.fait - y.fait || y.ratio - x.ratio);
+  const faits = autres.filter((l) => l.fait).length;
+  html += `<details class="section-succes" open><summary><span>Succès à paliers</span>
+    <span class="compteur ${faits === autres.length ? "complet" : ""}">${faits} / ${autres.length}</span></summary>
+    <ul class="liste paliers">${autres.filter((l) => !l.fait || $("#succes-tout").checked).map((l) => `<li class="${l.fait ? "fait" : ""}">
+      <span>${l.fait ? "✔" : "○"} ${echapper(l.a.nom)}</span><span class="biome">${l.detail}</span>
+      <progress max="1" value="${l.ratio}"></progress></li>`).join("")}</ul></details>`;
+  return html;
+}
+
 function afficherSucces() {
   const s = sauvegardeSucces;
   if (!s) return;
@@ -181,6 +215,8 @@ function afficherSucces() {
   let html = `<div class="resume"><p><strong>${echapper(s.nom || "Personnage")}</strong> · format ${s.version}` +
     (mondes.length ? ` · mondes : ${mondes.map(echapper).join(", ")}` : "") + "</p>" +
     (s.avertissement ? `<p class="attention">${echapper(s.avertissement)}</p>` : "") + "</div>";
+
+  html += paliersHtml(s);
 
   for (const sec of listesSucces(s)) {
     const entrees = sec.liste.map((e) => ({ ...e, n: sec.fait.get(e.cle) || 0 }));

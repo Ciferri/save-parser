@@ -136,3 +136,8 @@ details > summary { cursor: pointer; }
   padding: 10px 16px; background: var(--surface); border: 1px solid var(--accent); border-radius: 10px;
 }
 #perso-charge p { flex-basis: 100%; margin: 0; }
+
+progress { width: 100%; height: 8px; accent-color: var(--accent); }
+.survie { border-color: var(--accent); }
+.liste.paliers li { flex-wrap: wrap; }
+.liste.paliers progress { flex-basis: 100%; height: 6px; }
