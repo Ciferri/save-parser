@@ -24,6 +24,7 @@
 
   <nav class="onglets" role="tablist" aria-label="Outils">
     <button role="tab" id="t-succes" aria-controls="succes" aria-selected="true">Succès</button>
+    <button role="tab" id="t-parbiome" aria-controls="parbiome" aria-selected="false" tabindex="-1">Par biome</button>
     <button role="tab" id="t-predicteur" aria-controls="predicteur" aria-selected="false" tabindex="-1">Prédicteur</button>
     <button role="tab" id="t-noms" aria-controls="noms" aria-selected="false" tabindex="-1">Chercheur de noms</button>
     <button role="tab" id="t-relais" aria-controls="relais" aria-selected="false" tabindex="-1">Relais</button>
@@ -46,6 +47,19 @@
         <label><input type="checkbox" id="succes-tout"> Afficher aussi ce qui est fait</label>
       </div>
       <div id="succes-resultat" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= Par biome ================= -->
+    <section id="parbiome" role="tabpanel" aria-labelledby="t-parbiome" hidden>
+      <h2>Succès à faire, biome par biome</h2>
+      <p>Pour chaque biome, tout ce qui devient faisable en y arrivant : créatures et boss à vaincre, trophées, poissons,
+        objets à fabriquer, plats, aliments et pièces à construire. Un objet est rangé dans le biome le plus avancé dont il
+        a besoin (ingrédients et station). Avec votre fichier chargé, seul ce qui vous manque est affiché.</p>
+      <div class="options">
+        <label>Biome <select id="parbiome-choix"></select></label>
+        <label><input type="checkbox" id="parbiome-tout"> Afficher aussi ce qui est fait</label>
+      </div>
+      <div id="parbiome-resultat" aria-live="polite"></div>
     </section>
 
     <!-- ================= Prédicteur ================= -->

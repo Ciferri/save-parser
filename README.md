@@ -10,6 +10,7 @@ Aucun fichier n'est envoyé sur Internet et le fichier n'est jamais modifié.
 | Onglet | Ce qu'il fait |
 |---|---|
 | **Succès** | Ce qu'il manque pour chaque succès : objets à fabriquer (414), armes (145), plats (82), aliments à goûter (96), pièces à construire (394), créatures (100), boss et mini-boss, trophées (68), poissons, façons de mourir et morts par arbre. Un filtre « Je suis actuellement dans » masque ce qui demande d'aller plus loin. |
+| **Par biome** | Pour chaque biome, tout ce qui y devient faisable pour les succès : créatures, trophées, poissons, objets, plats, aliments et pièces, avec seulement ce qui manque quand un fichier est chargé. |
 | **Prédicteur** | Pour chaque objet améliorable de l'inventaire : le meilleur niveau atteignable à la Forge du potentiel, après combien de tentatives s'arrêter, et le déroulé complet. Fonctionne aussi sans fichier, pour un objet et un nom de nouveau personnage. |
 | **Chercheur de noms** | Cherche des noms de personnage qui réussissent N améliorations d'affilée dès le départ. |
 | **Relais** | Trouve une chaîne de nouveaux personnages qui amène un objet d'une qualité à une autre sans aucun échec. |
@@ -67,7 +68,9 @@ Le site est publié par GitHub Pages depuis la branche `main`.
 
 - Format de fichier testé : profil 46 et 47, données du joueur 34 (Valheim 1.0.20 et plus). Un personnage enregistré
   par une version plus ancienne doit d'abord être rechargé et sauvegardé dans le jeu à jour.
-- Les noms sont les noms français officiels du jeu. Les biomes indiqués sont une estimation de ce site.
+- Les noms sont les noms français officiels du jeu. Les biomes sont une estimation : celui de chaque matière
+  première est fixé à la main (`outils/biomes_matieres.py`), puis chaque objet prend le biome le plus avancé parmi
+  ses ingrédients et sa station.
 - Compteurs de butin : les créatures hors boss sont supposées pouvoir avoir 0 à 2 étoiles.
 - Coût d'amélioration : quand l'objet redescend sous la limite de sa station, on suppose qu'il y est réamélioré.
 

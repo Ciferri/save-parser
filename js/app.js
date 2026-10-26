@@ -143,7 +143,7 @@ actionsDepot.succes = (s) => {
 function listesSucces(s) {
   const tous = s.jeux[JEU_STATS.tous], normal = s.jeux[JEU_STATS.normal], difficile = s.jeux[JEU_STATS.difficile];
   const L = JEU.listes;
-  const jetons = (liste, detail) => liste.map((t) => ({ cle: t, nom: nomJeton(t), biome: BIOME_DE.get(t), detail: detail && detail(t) }));
+  const jetons = (liste, detail) => liste.map((t) => ({ cle: t, nom: nomJeton(t), biome: BIOME_DE.get(t) ?? JEU.biomes[t], detail: detail && detail(t) }));
   const station = (t) => JEU.stations.objets[t] && nomJeton(JEU.stations.objets[t]);
   const stationPiece = (t) => JEU.stations.pieces[t] && nomJeton(JEU.stations.pieces[t]);
   const stats = (table) => table.map(([i, nom, b]) => ({ cle: i, nom, biome: b }));
@@ -599,3 +599,56 @@ function afficherIdoles() {
   $("#idoles-resultat").innerHTML = html || `<p class="aide-petite">Aucun objet ne correspond.</p>`;
 }
 afficherIdoles();
+
+// ---------- par biome ----------
+
+// une sauvegarde vide pour montrer toutes les listes sans fichier
+function sauvegardeVide() {
+  const jeu = () => ({ stats: new Float32Array(205), mondes: new Map(), tues: new Map(), ramasses: new Map(),
+    fabriques: new Map(), cueillis: new Map(), manges: new Map(), construits: new Map() });
+  return { jeux: Array.from({ length: 10 }, jeu) };
+}
+let sauvegardeBiome = null;
+const selParBiome = $("#parbiome-choix");
+// on garde une seule variante par succès : « toutes difficultés »
+const sectionsBiome = (s) => listesSucces(s).filter((sec) => !/\((Difficile|Normal ou plus)\)/.test(sec.titre));
+
+function restantsParBiome(s) {
+  const n = new Array(BIOMES.length).fill(0);
+  for (const sec of sectionsBiome(s)) for (const e of sec.liste) if (e.biome !== undefined && !(sec.fait.get(e.cle) > 0)) n[e.biome]++;
+  return n;
+}
+function remplirChoixBiome() {
+  const s = sauvegardeBiome || sauvegardeVide();
+  const n = restantsParBiome(s), avant = selParBiome.value;
+  selParBiome.innerHTML = BIOMES.map((b, i) => `<option value="${i}">${b} — ${n[i]} ${sauvegardeBiome ? "à faire" : "élément(s)"}</option>`).join("");
+  // par défaut : le premier biome où il reste quelque chose
+  selParBiome.value = avant !== "" && !sauvegardeBiome ? avant : String(Math.max(0, n.findIndex((x) => x > 0)));
+}
+actionsDepot.parbiome = (s) => { sauvegardeBiome = s; remplirChoixBiome(); afficherParBiome(); };
+selParBiome.addEventListener("change", afficherParBiome);
+$("#parbiome-tout").addEventListener("change", afficherParBiome);
+
+function afficherParBiome() {
+  const s = sauvegardeBiome || sauvegardeVide();
+  const b = Number(selParBiome.value), tout = $("#parbiome-tout").checked || !sauvegardeBiome;
+  let html = "", total = 0;
+  for (const sec of sectionsBiome(s)) {
+    const entrees = sec.liste.filter((e) => e.biome === b).map((e) => ({ ...e, n: sec.fait.get(e.cle) || 0 }));
+    const visibles = entrees.filter((e) => tout || !e.n).sort((x, y) => comparer(x.nom, y.nom));
+    if (!visibles.length) continue;
+    total += visibles.filter((e) => !e.n).length;
+    html += `<details class="section-succes" open><summary><span>${sec.titre}</span>
+      <span class="compteur">${entrees.filter((e) => e.n).length} / ${entrees.length} dans ce biome</span></summary>
+      <ul class="liste">${visibles.map((e) => `<li class="${e.n ? "fait" : ""}"><span>${e.n ? "✔" : "○"} ${echapper(e.nom)}</span>
+        <span class="biome">${e.detail ? echapper(e.detail) : ""}</span></li>`).join("")}</ul></details>`;
+  }
+  const entete = sauvegardeBiome
+    ? `<div class="resume"><p><strong>${BIOMES[b]}</strong> : ${total ? `${total} chose(s) à faire` : "tout est fait ✔"}</p></div>`
+    : `<p class="aide-petite">Chargez votre fichier en haut de la page pour ne voir que ce qui vous manque.</p>`;
+  $("#parbiome-resultat").innerHTML = entete + (html || `<p class="aide-petite">Rien à afficher pour ce biome.</p>`) +
+    `<p class="aide-petite">Les biomes des objets sont calculés d'après leurs recettes et une estimation, faite pour ce site, de l'endroit où
+      chaque matière première se trouve. Les succès à paliers (Survie, Bûcheronnage…) se font partout et sont dans l'onglet Succès.</p>`;
+}
+remplirChoixBiome();
+afficherParBiome();

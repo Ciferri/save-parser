@@ -176,6 +176,68 @@ for b in butins.values():
 for i in range(1, 13):
     if traduit(f"$animal_fish{i}"): NOMS[f"$animal_fish{i}"] = traduit(f"$animal_fish{i}")
 
+# ---------- biome à partir duquel chaque chose est faisable ----------
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from biomes_matieres import BIOME_MATIERE, PREFIXES
+INCONNU = 99
+producteurs = collections.defaultdict(list)          # prefab -> [(ingrédients, station, niveau de station)]
+for r in recettes:
+    if r["actif"] and r["prefab"]:
+        producteurs[r["prefab"]].append(([x["p"] for x in r["res"] if x["n"] > 0 and not x["idole"]],
+                                         r["station"]["d"]["m_name"] if r["station"] else None, r["min"]))
+for cls in ("Smelter", "CookingStation", "Fermenter"):
+    for st in by[cls]:
+        for cv in st["d"].get("m_conversion", []):
+            a = objet(st["cab"], cv["m_from"])[0]; b = objet(st["cab"], cv["m_to"])[0]
+            if a and b: producteurs[b].append(([a], st["d"]["m_name"], 1))
+recettes_pieces = {}                                  # jeton de pièce -> (ingrédients, station)
+for pc in by["Piece"]:
+    n = pc["d"]["m_name"]
+    if n in recettes_pieces: continue
+    ing = [objet(pc["cab"], x["m_resItem"])[0] for x in pc["d"].get("m_resources", []) if x.get("m_amount", 0) > 0]
+    st = designe(pc["cab"], pc["d"].get("m_craftingStation"), "CraftingStation")
+    recettes_pieces[n] = ([i for i in ing if i], st["d"]["m_name"] if st else None)
+extensions = collections.defaultdict(set)             # station -> jetons des pièces d'extension
+for e in by["StationExtension"]:
+    st = designe(e["cab"], e["d"]["m_craftingStation"], "CraftingStation")
+    pc = sur_go(f'{e["cab"]}|{e["go"]}', "Piece")
+    if st and pc: extensions[st["d"]["m_name"]].add(pc["d"]["m_name"])
+b_objet = dict(BIOME_MATIERE); b_piece = {}
+for i in {i for lst in producteurs.values() for ing, _, _ in lst for i in ing} | {i for ing, _ in recettes_pieces.values() for i in ing}:
+    for prefixe, b in PREFIXES.items():
+        if i.startswith(prefixe) and i not in producteurs: b_objet.setdefault(i, b)
+def b_station(st, niveau):
+    if not st: return 0
+    base = b_piece.get(st, INCONNU)
+    if niveau > 1:
+        ext = sorted(b_piece.get(x, INCONNU) for x in extensions.get(st, ()))
+        base = max(base, ext[niveau - 2] if len(ext) >= niveau - 1 else INCONNU)
+    return base
+for _ in range(60):
+    change = False
+    for p, lst in producteurs.items():
+        v = min(max([b_objet.get(i, INCONNU) for i in ing] + [b_station(st, niv)]) for ing, st, niv in lst)
+        if v < b_objet.get(p, INCONNU): b_objet[p] = v; change = True
+    for n, (ing, st) in recettes_pieces.items():
+        v = max([b_objet.get(i, INCONNU) for i in ing] + [b_station(st, 1)])
+        if v < b_piece.get(n, INCONNU): b_piece[n] = v; change = True
+    if not change: break
+biome_jeton = {}
+for p, v in b_objet.items():
+    it = objets.get(p) or next((o for o in by["ItemDrop"] if nom_go(o) == p), None)
+    if it and v < INCONNU:
+        t = sh(it)["m_name"]; biome_jeton[t] = min(v, biome_jeton.get(t, INCONNU))
+for n, v in b_piece.items():
+    if v < INCONNU: biome_jeton[n] = min(v, biome_jeton.get(n, INCONNU))
+listes_biome = set().union(fabriques, armes, cuisines, manges, construits)
+sans = sorted(t for t in listes_biome if t not in biome_jeton)
+print(f"biomes calculés : {len(listes_biome) - len(sans)} / {len(listes_biome)}", "sans biome :", sans[:40], file=sys.stderr)
+biomes = {t: biome_jeton[t] for t in sorted(listes_biome) if t in biome_jeton}
+if os.environ.get("DIAG"):
+    feuilles = {i for lst in producteurs.values() for ing, _, _ in lst for i in ing} | {i for ing, _ in recettes_pieces.values() for i in ing}
+    print("matières sans biome :", sorted(i for i in feuilles if i not in producteurs and i not in b_objet), file=sys.stderr)
+    print("stations :", {st: b_piece.get(st) for st in {x for l in producteurs.values() for _, x, _ in l if x}}, file=sys.stderr)
+
 # succès à paliers : une ou plusieurs statistiques à atteindre (sauf les listes de morts, affichées à part)
 succes_stats = []
 for d in sorted(achs.values(), key=lambda d: d["m_id"]):
@@ -187,7 +249,7 @@ donnees = dict(
     listes=dict(fabriques=sorted(fabriques), armes=sorted(armes), cuisines=sorted(cuisines), manges=sorted(manges),
                 construits=sorted(construits), creatures=sorted(creatures), trophees=sorted(trophees), boss=boss, miniboss=miniboss),
     stations=dict(objets=station_de, pieces=piece_station), noms=NOMS, nomsPrefab=NOMS_PREFAB,
-    ameliorables=ameliorables, butins=butins, succesStats=succes_stats)
+    ameliorables=ameliorables, butins=butins, succesStats=succes_stats, biomes=biomes)
 print({k: len(v) for k, v in donnees["listes"].items()}, "améliorables", len(ameliorables), "butins", len(butins),
       "stations max", niveau_max, "fuel", fuel_par, file=sys.stderr)
 with open(SORTIE, "w", encoding="utf8") as f:
