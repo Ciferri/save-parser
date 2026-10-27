@@ -15,6 +15,7 @@ Aucun fichier n'est envoyé sur Internet et le fichier n'est jamais modifié.
 | **Chercheur de noms** | Cherche des noms de personnage qui réussissent N améliorations d'affilée dès le départ. |
 | **Relais** | Trouve une chaîne de nouveaux personnages qui amène un objet d'une qualité à une autre sans aucun échec. |
 | **Coût d'amélioration** | Ce que coûte réellement à un personnage d'amener un objet à une qualité : copies fabriquées, idoles, matériaux dépensés et rendus quand l'objet casse. |
+| **Monde** | Lit le dossier d'un monde (format en morceaux `.chunk`) : liste des portails avec leurs liaisons (reliés, seuls, noms en double) et recherche d'un objet dans tous les coffres, avec leurs coordonnées. |
 | **Compteurs de butin** | Pour chaque butin rare (30 % ou moins), à quelle mise à mort il tombera d'après les compteurs enregistrés dans le personnage. |
 
 ## Principe de la prédiction
@@ -45,6 +46,7 @@ js/fch.js             lecture du fichier .fch
 js/forge.js           hachage des noms, générateur de Unity, simulation et recherche
 js/cout.js            coût d'amélioration
 js/butins.js          compteurs de butin
+js/monde.js           lecture d'un monde (.chunk) : coffres et portails
 js/worker-noms.js     recherche de noms en arrière-plan
 js/app.js             interface
 outils/               extraction des données depuis le jeu installé

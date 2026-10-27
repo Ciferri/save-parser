@@ -31,6 +31,7 @@
     <button role="tab" id="t-cout" aria-controls="cout" aria-selected="false" tabindex="-1">Coût d'amélioration</button>
     <button role="tab" id="t-idoles" aria-controls="idoles" aria-selected="false" tabindex="-1">Idoles</button>
     <button role="tab" id="t-butins" aria-controls="butins" aria-selected="false" tabindex="-1">Compteurs de butin</button>
+    <button role="tab" id="t-monde" aria-controls="monde" aria-selected="false" tabindex="-1">Monde</button>
     <button role="tab" id="t-aide" aria-controls="aide" aria-selected="false" tabindex="-1">Où est mon fichier ?</button>
   </nav>
 
@@ -163,6 +164,41 @@
       <div id="butins-resultat" aria-live="polite"></div>
     </section>
 
+    <!-- ================= Monde ================= -->
+    <section id="monde" role="tabpanel" aria-labelledby="t-monde" hidden>
+      <h2>Monde : portails et coffres</h2>
+      <p>Choisissez le dossier de votre monde (celui qui contient les fichiers <code>.chunk</code> et <code>_main.….db2</code>).
+        Le site liste les portails avec leurs liaisons et permet de chercher un objet dans tous les coffres. Seules les zones
+        déjà générées (où un joueur est passé) contiennent des coffres et leur contenu. Rien n'est envoyé ni modifié.</p>
+      <label class="depot" id="depot-monde">
+        <input type="file" webkitdirectory multiple hidden>
+        <span>Cliquez pour choisir le <u>dossier du monde</u></span>
+      </label>
+      <details class="ou-fichier">
+        <summary>Où se trouve le dossier du monde ?</summary>
+        <ul>
+          <li>Monde local : <code>%USERPROFILE%\AppData\LocalLow\IronGate\Valheim\worlds_local</code></li>
+          <li>Serveur dédié (Linux) : <code>.config/unity3d/IronGate/Valheim/worlds_local</code> sur le serveur ; téléchargez-en une copie.</li>
+        </ul>
+        <p>Le site lit le format de sauvegarde en morceaux (<code>.chunk</code>), utilisé par les versions récentes du jeu.</p>
+      </details>
+      <div id="monde-resultat" aria-live="polite"></div>
+      <div id="monde-outils" hidden>
+        <h3>Chercher un objet dans les coffres</h3>
+        <div class="options">
+          <label>Objet <input id="monde-objet" list="liste-tous-objets" placeholder="ex. Tête de hache mystérieuse"></label>
+        </div>
+        <div id="monde-coffres"></div>
+        <h3>Portails</h3>
+        <div class="options">
+          <label>Filtrer par nom <input id="monde-filtre-portail" type="search"></label>
+          <label>Afficher
+            <select id="monde-etat-portail"><option value="">tous</option><option value="seul">non reliés</option><option value="plus">noms utilisés plus de 2 fois</option></select></label>
+        </div>
+        <div id="monde-portails"></div>
+      </div>
+    </section>
+
     <!-- ================= Aide ================= -->
     <section id="aide" role="tabpanel" aria-labelledby="t-aide" hidden>
       <h2>Où se trouve mon fichier de personnage ?</h2>
@@ -192,6 +228,7 @@
   </template>
 
   <datalist id="liste-objets"></datalist>
+  <datalist id="liste-tous-objets"></datalist>
 
   <footer class="pied">
     <p>Projet indépendant, non affilié à Iron Gate. Les données (noms officiels, recettes, butins, règles de la Forge) sont
@@ -204,6 +241,7 @@
   <script src="js/fch.js"></script>
   <script src="js/cout.js"></script>
   <script src="js/butins.js"></script>
+  <script src="js/monde.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
