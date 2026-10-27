@@ -653,29 +653,10 @@ function afficherParBiome() {
 remplirChoixBiome();
 afficherParBiome();
 
-// ---------- monde ----------
+// ---------- monde : portails ----------
 
-let monde = null;
-const PAR_NOM_OBJET = new Map();          // nom affiché (minuscules) -> hachages des prefabs qui portent ce nom
-for (const [p, n] of Object.entries(JEU.nomsPrefab)) {
-  const k = n.toLowerCase();
-  if (!PAR_NOM_OBJET.has(k)) PAR_NOM_OBJET.set(k, new Set());
-  PAR_NOM_OBJET.get(k).add(hachage(p));
-}
-const NOM_PAR_HACHAGE = new Map(Object.entries(JEU.nomsPrefab).map(([p, n]) => [hachage(p), n]));
-$("#liste-tous-objets").innerHTML = [...new Set(Object.values(JEU.nomsPrefab))].sort(comparer)
-  .map((n) => `<option value="${echapper(n)}">`).join("");
-
-const BIOME_COFFRE = { meadows: "Prairies", blackforest: "Forêt noire", swamp: "Marécages", mountains: "Montagnes",
-  plains: "Plaines", heath: "Plaines", mistlands: "Terres brumeuses", ashland: "Terres cendrées", deepnorth: "Grand Nord" };
-function nomConteneur(type) {
-  const n = JEU.conteneurs[type];
-  if (n && n !== type) return n;
-  const m = type.match(/^TreasureChest_([a-z]+)/i);
-  if (m) return `Coffre au trésor${BIOME_COFFRE[m[1].toLowerCase()] ? " — " + BIOME_COFFRE[m[1].toLowerCase()] : ""}`;
-  return type;
-}
-const coord = (c) => `${Math.round(c.x)}, ${Math.round(c.z)}`;
+let portailsMonde = null;
+const coord = (p) => `${Math.round(p.x)}, ${Math.round(p.z)}`;
 
 const entreeMonde = $("#depot-monde input");
 $("#depot-monde").addEventListener("click", (e) => { if (e.target !== entreeMonde) { e.preventDefault(); entreeMonde.click(); } });
@@ -690,58 +671,37 @@ entreeMonde.addEventListener("change", async () => {
   const fichiers = [];
   for (const f of choisis) fichiers.push({ nom: f.name, octets: new Uint8Array(await f.arrayBuffer()) });
   await new Promise((r) => setTimeout(r, 30));      // laisse le message s'afficher avant le calcul
-  monde = lireMonde(fichiers);
+  portailsMonde = lirePortails(fichiers);
   const dossier = (entreeMonde.files[0].webkitRelativePath || "").split("/")[0];
-  sortie.innerHTML = `<div class="resume"><p><strong>${echapper(dossier || "Monde")}</strong> · ${choisis.length} morceau(x) ·
-    ${nombre(monde.conteneurs.length)} conteneur(s) · ${monde.portails.length} portail(s)</p></div>`;
+  sortie.innerHTML = `<div class="resume"><p><strong>${echapper(dossier || "Monde")}</strong> · ${portailsMonde.length} portail(s)</p></div>`;
   $("#depot-monde span").textContent = `Dossier : ${dossier || "monde"} (cliquez pour en choisir un autre)`;
-  $("#monde-outils").hidden = false;
-  chercherDansCoffres();
   afficherPortails();
 });
 
-function chercherDansCoffres() {
-  const cible = $("#monde-coffres");
-  const texte = $("#monde-objet").value.trim().toLowerCase();
-  if (!monde || !texte) { cible.innerHTML = `<p class="aide-petite">Tapez le nom d'un objet.</p>`; return; }
-  const hachages = PAR_NOM_OBJET.get(texte) || (JEU.nomsPrefab[$("#monde-objet").value.trim()] ? new Set([hachage($("#monde-objet").value.trim())]) : null);
-  if (!hachages) { cible.innerHTML = `<p class="aide-petite">Choisissez un objet dans la liste proposée.</p>`; return; }
-  const trouves = monde.conteneurs.filter((c) => c.objets.some((o) => hachages.has(o.prefab)));
-  if (!trouves.length) { cible.innerHTML = `<p>Aucun coffre généré ne contient cet objet.</p>`; return; }
-  cible.innerHTML = `<p>${trouves.length} conteneur(s) en contiennent.</p>
-    <table class="tableau"><thead><tr><th>Conteneur</th><th>Position (x, z)</th><th>Hauteur</th><th>Contenu</th></tr></thead><tbody>
-    ${trouves.map((c) => `<tr><td>${echapper(nomConteneur(c.type))}</td><td class="num"><code>${coord(c)}</code></td><td class="num">${Math.round(c.y)}</td>
-      <td>${c.objets.map((o) => { const n = echapper(NOM_PAR_HACHAGE.get(o.prefab) || "objet inconnu");
-        return `${hachages.has(o.prefab) ? `<strong>${n}</strong>` : n} ×${o.pile}`; }).join(", ")}</td></tr>`).join("")}
+// Tous les portails, triés par nom ; deux portails du même nom sont reliés.
+function afficherPortails() {
+  const parNom = new Map();
+  for (const p of portailsMonde) {
+    if (!parNom.has(p.nom)) parNom.set(p.nom, []);
+    parNom.get(p.nom).push(p);
+  }
+  const lignes = [...portailsMonde].sort((a, b) => comparer(a.nom || "~", b.nom || "~") || a.x - b.x);
+  const relie = (p) => {
+    const groupe = parNom.get(p.nom);
+    if (groupe.length === 1) return `<span class="pastille seul">non relié</span>`;
+    const autres = groupe.filter((q) => q !== p).map((q) => `<code>${coord(q)}</code>`).join(" ou ");
+    return groupe.length === 2 ? `<span class="pastille ok">relié</span> → ${autres}`
+      : `<span class="pastille seul">${groupe.length} du même nom</span> → ${autres}`;
+  };
+  const seuls = [...parNom.values()].filter((g) => g.length === 1).length;
+  const multiples = [...parNom.values()].filter((g) => g.length > 2).length;
+  $("#monde-portails").innerHTML = `<p>${parNom.size} nom(s) : ${parNom.size - seuls - multiples} paire(s) reliée(s), ${seuls} non relié(s)` +
+    `${multiples ? `, ${multiples} nom(s) utilisé(s) plus de deux fois` : ""}.</p>
+    <table class="tableau"><thead><tr><th>Nom</th><th>Position (x, z)</th><th>Mène à</th></tr></thead><tbody>
+    ${lignes.map((p) => `<tr><td>${p.nom ? echapper(p.nom) : "<em>(sans nom)</em>"}${p.type !== "portal_wood" ? ` <small>${echapper(JEU.portails[p.type] || p.type)}</small>` : ""}</td>
+      <td class="num"><code>${coord(p)}</code></td><td>${relie(p)}</td></tr>`).join("")}
     </tbody></table>
     <p class="aide-petite">Positions en coordonnées du monde : x vers l'est, z vers le nord, (0, 0) au centre de la carte.
-      Le contenu est celui de la dernière sauvegarde du monde.</p>`;
+      Deux portails portant exactement le même nom sont reliés ; avec trois ou plus, le jeu n'en relie que deux, sans garantie lesquels.
+      Liste tirée de la dernière sauvegarde du monde.</p>`;
 }
-$("#monde-objet").addEventListener("input", chercherDansCoffres);
-
-function afficherPortails() {
-  if (!monde) return;
-  const filtre = sansAccents($("#monde-filtre-portail").value.trim()), etat = $("#monde-etat-portail").value;
-  const groupes = new Map();
-  for (const p of monde.portails) {
-    if (!groupes.has(p.nom)) groupes.set(p.nom, []);
-    groupes.get(p.nom).push(p);
-  }
-  const lignes = [...groupes].filter(([nom, ps]) => (!filtre || sansAccents(nom).includes(filtre))
-    && (!etat || (etat === "seul" ? ps.length === 1 : ps.length > 2)))
-    .sort((a, b) => comparer(a[0] || "~", b[0] || "~"));
-  const libelle = (ps) => ps.length === 2 ? `<span class="pastille ok">relié</span>`
-    : ps.length === 1 ? `<span class="pastille seul">non relié</span>` : `<span class="pastille seul">${ps.length} portails</span>`;
-  const seuls = [...groupes.values()].filter((ps) => ps.length === 1).length;
-  const multiples = [...groupes.values()].filter((ps) => ps.length > 2).length;
-  $("#monde-portails").innerHTML = `<p>${groupes.size} nom(s) : ${groupes.size - seuls - multiples} paire(s) reliée(s),
-    ${seuls} portail(s) non relié(s)${multiples ? `, ${multiples} nom(s) utilisé(s) plus de deux fois` : ""}.</p>
-    <table class="tableau"><thead><tr><th>Nom</th><th>État</th><th>Positions (x, z)</th></tr></thead><tbody>
-    ${lignes.map(([nom, ps]) => `<tr><td>${nom ? echapper(nom) : "<em>(sans nom)</em>"}</td><td>${libelle(ps)}</td>
-      <td>${ps.map((p) => `<code>${coord(p)}</code>${p.type !== "portal_wood" ? ` <small>${echapper(JEU.portails[p.type] || p.type)}</small>` : ""}`).join(" ↔ ")}</td></tr>`).join("")}
-    </tbody></table>
-    <p class="aide-petite">Deux portails portant exactement le même nom sont reliés. Avec trois portails ou plus du même nom,
-      le jeu n'en relie que deux, sans garantie lesquels.</p>`;
-}
-$("#monde-filtre-portail").addEventListener("input", afficherPortails);
-$("#monde-etat-portail").addEventListener("change", afficherPortails);

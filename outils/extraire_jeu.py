@@ -19,7 +19,7 @@ from UnityPy.helpers.TypeTreeGenerator import TypeTreeGenerator
 
 CLASSES = {"ItemDrop", "Recipe", "Piece", "PieceTable", "CraftingStation", "StationExtension", "CharacterDrop",
            "Humanoid", "Character", "Achievement", "Achievements", "ObjectDB", "CookingStation", "Smelter", "Fermenter",
-           "Container", "TeleportWorld"}
+           "TeleportWorld"}
 LANGUES_IGNOREES = {"localization_xbox", "localization_ps", "localization_switch", "localization_platformspecific",
                     "localization_captions"}
 

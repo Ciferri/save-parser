@@ -238,19 +238,15 @@ if os.environ.get("DIAG"):
     print("matières sans biome :", sorted(i for i in feuilles if i not in producteurs and i not in b_objet), file=sys.stderr)
     print("stations :", {st: b_piece.get(st) for st in {x for l in producteurs.values() for _, x, _ in l if x}}, file=sys.stderr)
 
-# ---------- monde : conteneurs et portails (prefab -> nom affiché) ----------
+# ---------- monde : portails (prefab -> nom affiché) ----------
 def nom_objet_monde(o):
     pc = sur_go(f'{o["cab"]}|{o["go"]}', "Piece")
     return traduit(pc["d"]["m_name"]) if pc else traduit(o["d"].get("m_name"))
-conteneurs = {}
-for o in by["Container"]:
-    g = nom_go(o)
-    if g and g not in conteneurs: conteneurs[g] = nom_objet_monde(o) or g
 portails = {}
 for o in by["TeleportWorld"]:
     g = nom_go(o)
     if g and g not in portails: portails[g] = nom_objet_monde(o) or g
-print(f"conteneurs {len(conteneurs)}, portails {sorted(portails)}", file=sys.stderr)
+print(f"portails {sorted(portails)}", file=sys.stderr)
 
 # succès à paliers : une ou plusieurs statistiques à atteindre (sauf les listes de morts, affichées à part)
 succes_stats = []
@@ -264,7 +260,7 @@ donnees = dict(
                 construits=sorted(construits), creatures=sorted(creatures), trophees=sorted(trophees), boss=boss, miniboss=miniboss),
     stations=dict(objets=station_de, pieces=piece_station), noms=NOMS, nomsPrefab=NOMS_PREFAB,
     ameliorables=ameliorables, butins=butins, succesStats=succes_stats, biomes=biomes,
-    conteneurs=conteneurs, portails=portails)
+    portails=portails)
 print({k: len(v) for k, v in donnees["listes"].items()}, "améliorables", len(ameliorables), "butins", len(butins),
       "stations max", niveau_max, "fuel", fuel_par, file=sys.stderr)
 with open(SORTIE, "w", encoding="utf8") as f:
