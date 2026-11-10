@@ -661,8 +661,18 @@ const coord = (p) => `${Math.round(p.x)}, ${Math.round(p.z)}`;
 const entreeMonde = $("#depot-monde input");
 $("#depot-monde").addEventListener("click", (e) => { if (e.target !== entreeMonde) { e.preventDefault(); entreeMonde.click(); } });
 entreeMonde.addEventListener("change", async () => {
-  const choisis = [...entreeMonde.files].filter((f) => f.name.endsWith(".chunk"));
+  const tous = [...entreeMonde.files];
+  const morceaux = tous.filter((f) => f.name.endsWith(".chunk"));
   const sortie = $("#monde-resultat");
+  // le dossier peut contenir plusieurs sauvegardes : on ne garde que les morceaux de la plus récente
+  const index = [];
+  for (const f of tous) {
+    const m = f.name.match(/^_main\.(\d+)\.chunks$/);
+    if (m) index.push({ numero: Number(m[1]), octets: new Uint8Array(await f.arrayBuffer()) });
+  }
+  const choix = choisirMorceaux(index, morceaux.map((f) => f.name));
+  const garder = new Set(choix.garder);
+  const choisis = morceaux.filter((f) => garder.has(f.name));
   if (!choisis.length) {
     sortie.innerHTML = erreur("Aucun fichier .chunk dans ce dossier. Choisissez le dossier qui contient les morceaux du monde.");
     return;
@@ -674,7 +684,12 @@ entreeMonde.addEventListener("change", async () => {
   const monde = lireMonde(fichiers);
   portailsMonde = monde.portails;
   const dossier = (entreeMonde.files[0].webkitRelativePath || "").split("/")[0];
-  sortie.innerHTML = `<div class="resume"><p><strong>${echapper(dossier || "Monde")}</strong> · ${monde.tombes.length} tombe(s) · ${portailsMonde.length} portail(s)</p></div>`;
+  const ignores = morceaux.length - choisis.length;
+  sortie.innerHTML = `<div class="resume"><p><strong>${echapper(dossier || "Monde")}</strong> · ${monde.tombes.length} tombe(s) · ${portailsMonde.length} portail(s)</p>
+    ${index.length > 1 || ignores ? `<p class="aide-petite">Le dossier contient ${index.length} sauvegarde(s) : seule la plus récente (n° ${choix.sauvegarde ?? "?"})
+      est lue${ignores ? `, ${ignores} morceau(x) d'une ancienne sauvegarde ignoré(s)` : ""}.</p>` : ""}
+    ${choix.manquants.length ? `<p class="attention">${choix.manquants.length} morceau(x) de cette sauvegarde manquent dans le dossier :
+      le téléchargement est peut-être incomplet.</p>` : ""}</div>`;
   $("#depot-monde span").textContent = `Dossier : ${dossier || "monde"} (cliquez pour en choisir un autre)`;
   afficherTombes(monde.tombes);
   afficherPortails();

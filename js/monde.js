@@ -61,6 +61,38 @@ function donnees(o, v, i, lecteurs) {
   return res;
 }
 
+// Un dossier peut contenir plusieurs sauvegardes (un téléchargement copié par-dessus un ancien). L'index
+// _main.<n>.chunks d'une sauvegarde liste ses morceaux : un entier 16 bits (version), un entier 32 bits, le nombre
+// d'entrées (32 bits), puis par entrée deux octets de zone, la couche (1 octet), le numéro de version du morceau
+// (32 bits) et un autre entier (32 bits). Le nom du fichier donne les deux octets de zone dans l'ordre inverse :
+// <octet 2>_<octet 1>__couche_version.chunk.
+function morceauxDeLIndex(octets) {
+  const v = new DataView(octets.buffer, octets.byteOffset, octets.byteLength);
+  const n = v.getInt32(6, true), noms = new Set();
+  const hex = (b) => b.toString(16).padStart(2, "0");
+  for (let k = 0, p = 10; k < n && p + 11 <= octets.length; k++, p += 11) {
+    noms.add(`${hex(octets[p + 1])}_${hex(octets[p])}__${octets[p + 2]}_${v.getInt32(p + 3, true)}.chunk`);
+  }
+  return noms;
+}
+
+// Choisit les morceaux de la sauvegarde la plus récente. index : [{ numero, octets }] ; noms : noms des .chunk présents.
+// Sans index, garde pour chaque zone le morceau au numéro de version le plus élevé.
+function choisirMorceaux(index, noms) {
+  if (index.length) {
+    const recent = index.reduce((a, b) => (b.numero > a.numero ? b : a));
+    const attendus = morceauxDeLIndex(recent.octets);
+    return { garder: noms.filter((n) => attendus.has(n)), manquants: [...attendus].filter((n) => !noms.includes(n)), sauvegarde: recent.numero };
+  }
+  const meilleur = new Map();
+  for (const n of noms) {
+    const m = n.match(/^(.+__\d+)_(\d+)\.chunk$/);
+    if (!m) continue;
+    if (!meilleur.has(m[1]) || Number(m[2]) > meilleur.get(m[1])[0]) meilleur.set(m[1], [Number(m[2]), n]);
+  }
+  return { garder: [...meilleur.values()].map((x) => x[1]), manquants: [], sauvegarde: null };
+}
+
 // fichiers : [{ nom, octets: Uint8Array }]. Renvoie { portails: [...], tombes: [...] }.
 function lireMonde(fichiers) {
   const typesPortail = new Map(Object.keys(JEU.portails).map((p) => [hachage(p), p]));
@@ -92,4 +124,4 @@ function lireMonde(fichiers) {
   return { portails, tombes };
 }
 
-if (typeof module !== "undefined") module.exports = { lireMonde };
+if (typeof module !== "undefined") module.exports = { lireMonde, choisirMorceaux };
