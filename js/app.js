@@ -653,7 +653,7 @@ function afficherParBiome() {
 remplirChoixBiome();
 afficherParBiome();
 
-// ---------- monde : portails ----------
+// ---------- monde : tombes et portails ----------
 
 let portailsMonde = null;
 const coord = (p) => `${Math.round(p.x)}, ${Math.round(p.z)}`;
@@ -671,12 +671,42 @@ entreeMonde.addEventListener("change", async () => {
   const fichiers = [];
   for (const f of choisis) fichiers.push({ nom: f.name, octets: new Uint8Array(await f.arrayBuffer()) });
   await new Promise((r) => setTimeout(r, 30));      // laisse le message s'afficher avant le calcul
-  portailsMonde = lirePortails(fichiers);
+  const monde = lireMonde(fichiers);
+  portailsMonde = monde.portails;
   const dossier = (entreeMonde.files[0].webkitRelativePath || "").split("/")[0];
-  sortie.innerHTML = `<div class="resume"><p><strong>${echapper(dossier || "Monde")}</strong> · ${portailsMonde.length} portail(s)</p></div>`;
+  sortie.innerHTML = `<div class="resume"><p><strong>${echapper(dossier || "Monde")}</strong> · ${monde.tombes.length} tombe(s) · ${portailsMonde.length} portail(s)</p></div>`;
   $("#depot-monde span").textContent = `Dossier : ${dossier || "monde"} (cliquez pour en choisir un autre)`;
+  afficherTombes(monde.tombes);
   afficherPortails();
 });
+
+// Tombes des joueurs, la plus récente d'abord, avec leur contenu.
+const NOM_PAR_HACHAGE = new Map(Object.entries(JEU.nomsPrefab).map(([p, n]) => [hachage(p), n]));
+function afficherTombes(tombes) {
+  const cible = $("#monde-tombes");
+  if (!tombes.length) { cible.innerHTML = `<h3>Tombes</h3><p>Aucune tombe dans ce monde.</p>`; return; }
+  const triees = [...tombes].sort((a, b) => (b.secondes ?? 0) - (a.secondes ?? 0));
+  const contenu = (t) => {
+    // regroupe les piles d'un même objet
+    const total = new Map();
+    for (const o of t.objets) {
+      const n = NOM_PAR_HACHAGE.get(o.prefab) || "objet inconnu";
+      total.set(n, (total.get(n) || 0) + o.pile);
+    }
+    return [...total].sort((a, b) => comparer(a[0], b[0])).map(([n, k]) => `${echapper(n)}${k > 1 ? ` ×${nombre(k)}` : ""}`).join(", ");
+  };
+  cible.innerHTML = `<h3>Tombes (${tombes.length})</h3>
+    <table class="tableau"><thead><tr><th>Joueur</th><th>Position (x, z)</th><th>Mort</th><th>Contenu</th></tr></thead><tbody>
+    ${triees.map((t) => `<tr><td><strong>${echapper(t.joueur || "inconnu")}</strong></td>
+      <td class="num"><code>${coord(t)}</code>${t.donjon ? `<br><small class="pastille seul">dans un donjon ou une grotte</small>` : ""}</td>
+      <td class="num">${t.jour ? `jour ${nombre(t.jour)}` : "?"}</td>
+      <td>${t.objets.length ? `<details><summary>${t.objets.length} objet(s)</summary>${contenu(t)}</details>` : "vide"}</td></tr>`).join("")}
+    </tbody></table>
+    <p class="aide-petite">La plus récente en premier. « Dans un donjon » : la tombe est dans une crypte ou une grotte dont l'entrée est
+      à cette position. Le jour est celui du monde au moment de la mort. Liste tirée de la dernière sauvegarde du monde : une tombe
+      récupérée depuis a disparu.</p>
+    <h3>Portails</h3>`;
+}
 
 // Tous les portails, triés par nom ; deux portails du même nom sont reliés.
 function afficherPortails() {

@@ -31,7 +31,7 @@
     <button role="tab" id="t-cout" aria-controls="cout" aria-selected="false" tabindex="-1">Coût d'amélioration</button>
     <button role="tab" id="t-idoles" aria-controls="idoles" aria-selected="false" tabindex="-1">Idoles</button>
     <button role="tab" id="t-butins" aria-controls="butins" aria-selected="false" tabindex="-1">Compteurs de butin</button>
-    <button role="tab" id="t-monde" aria-controls="monde" aria-selected="false" tabindex="-1">Monde</button>
+    <button role="tab" id="t-monde" aria-controls="monde" aria-selected="false" tabindex="-1">Monde (portails, tombes)</button>
     <button role="tab" id="t-aide" aria-controls="aide" aria-selected="false" tabindex="-1">Où est mon fichier ?</button>
   </nav>
 
@@ -166,10 +166,10 @@
 
     <!-- ================= Monde ================= -->
     <section id="monde" role="tabpanel" aria-labelledby="t-monde" hidden>
-      <h2>Portails du monde</h2>
+      <h2>Portails et tombes du monde</h2>
       <p>Choisissez le dossier de votre monde (celui qui contient les fichiers <code>.chunk</code> et <code>_main.….db2</code>) :
-        le site liste tous les portails posés sur la carte, avec leur nom, leur position et le portail auquel chacun est relié.
-        Rien n'est envoyé ni modifié.</p>
+        le site liste toutes les tombes des joueurs (pour retrouver ses affaires) et tous les portails posés sur la carte,
+        avec leur nom, leur position et le portail auquel chacun est relié. Rien n'est envoyé ni modifié.</p>
       <label class="depot" id="depot-monde">
         <input type="file" webkitdirectory multiple hidden>
         <span>Cliquez pour choisir le <u>dossier du monde</u></span>
@@ -183,6 +183,7 @@
         <p>Le site lit le format de sauvegarde en morceaux (<code>.chunk</code>), utilisé par les versions récentes du jeu.</p>
       </details>
       <div id="monde-resultat" aria-live="polite"></div>
+      <div id="monde-tombes"></div>
       <div id="monde-portails"></div>
     </section>
 
