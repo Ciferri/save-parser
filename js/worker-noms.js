@@ -3,7 +3,7 @@
 //            ou  { type: "relais", prefab, depart, arrivee, regles, alphabet, budget }
 // Messages envoyés : { type: "progression", ... } puis { type: "fin", ... } ou { type: "erreur", message }.
 "use strict";
-importScripts("forge.js");
+importScripts("forge.js" + self.location.search);   // même version que la page
 
 const PAS_PROGRESSION = 250_000;
 

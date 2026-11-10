@@ -144,3 +144,11 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); }
 
 .pastille.ok { background: var(--ok); }
 .pastille.seul { background: var(--avert); }
+
+.carte-cadre { position: relative; max-width: 900px; }
+#carte-monde { width: 100%; height: auto; border-radius: 50%; display: block; cursor: crosshair; }
+#carte-bulle { position: absolute; pointer-events: none; background: var(--surface); color: var(--texte); border: 1px solid var(--bord);
+  border-radius: 6px; padding: 4px 8px; font-size: .85em; white-space: nowrap; transform: translate(12px, -50%); }
+.carte-legende span { margin-right: 12px; white-space: nowrap; }
+.l-tombe { color: #ff4d4d; } .l-portail { color: #9b6bff; } .l-mort { color: #ff9f43; } .l-boss { color: #e8c35a; }
+.l-moi { color: #c4b280; } .l-autres { color: #78705c; }

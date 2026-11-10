@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Analyseur de sauvegarde Valheim</title>
   <meta name="description" content="Succès manquants, Forge du potentiel (prédiction, noms, relais, coût) et compteurs de butin pour Valheim.">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261110b">
 </head>
 <body>
   <header class="entete">
@@ -183,6 +183,15 @@
         <p>Le site lit le format de sauvegarde en morceaux (<code>.chunk</code>), utilisé par les versions récentes du jeu.</p>
       </details>
       <div id="monde-resultat" aria-live="polite"></div>
+      <div id="monde-carte" hidden>
+        <h3>Carte</h3>
+        <p class="aide-petite" id="carte-etat"></p>
+        <div class="carte-cadre"><canvas id="carte-monde" width="1024" height="1024" aria-label="Carte du monde"></canvas>
+          <div id="carte-bulle" hidden></div></div>
+        <p class="legende carte-legende"><span class="l-tombe">✖ tombe</span> <span class="l-portail">● portail</span>
+          <span class="l-mort">● votre dernière mort</span> <span class="l-boss">● boss</span> <span class="l-pin">● vos marqueurs</span>
+          <span class="l-moi">▇ exploré par vous</span> <span class="l-autres">▇ exploré par d'autres (table de cartographie)</span></p>
+      </div>
       <div id="monde-tombes"></div>
       <div id="monde-portails"></div>
     </section>
@@ -222,13 +231,14 @@
       extraites des fichiers du jeu ; les biomes indiqués sont une estimation de ce site.</p>
   </footer>
 
-  <script src="js/jeu.js"></script>
-  <script src="js/donnees.js"></script>
-  <script src="js/forge.js"></script>
-  <script src="js/fch.js"></script>
-  <script src="js/cout.js"></script>
-  <script src="js/butins.js"></script>
-  <script src="js/monde.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/jeu.js?v=20261110b"></script>
+  <script src="js/donnees.js?v=20261110b"></script>
+  <script src="js/forge.js?v=20261110b"></script>
+  <script src="js/fch.js?v=20261110b"></script>
+  <script src="js/cout.js?v=20261110b"></script>
+  <script src="js/butins.js?v=20261110b"></script>
+  <script src="js/monde.js?v=20261110b"></script>
+  <script src="js/carte.js?v=20261110b"></script>
+  <script src="js/app.js?v=20261110b"></script>
 </body>
 </html>

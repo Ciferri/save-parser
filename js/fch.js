@@ -32,6 +32,7 @@ class Lecteur {
   bool() { return this.u8() !== 0; }
   u16() { this.verifier(2); const x = this.v.getUint16(this.pos, true); this.pos += 2; return x; }
   i32() { this.verifier(4); const x = this.v.getInt32(this.pos, true); this.pos += 4; return x; }
+  i64() { this.verifier(8); const x = this.v.getBigInt64(this.pos, true); this.pos += 8; return x; }
   f32() { this.verifier(4); const x = this.v.getFloat32(this.pos, true); this.pos += 4; return x; }
   compte() {
     const n = this.i32();
@@ -150,9 +151,15 @@ function lireSauvegarde(octets) {
         : "" };
     try {
       l.sauter(1);                            // première apparition
-      for (let n = l.compte(); n > 0; n--) {  // données par monde
-        l.sauter(8 + 1 + 12 + 1 + 12 + 1 + 12 + 12);
-        if (l.bool()) l.sauter(l.compte());   // carte explorée
+      // données par monde, rangées par identifiant de monde : points connus et carte explorée (compressée)
+      res.mondes = new Map();
+      for (let n = l.compte(); n > 0; n--) {
+        const id = BigInt.asUintN(64, l.i64());
+        const point = () => { const a = l.bool(); const p = { x: l.f32(), y: l.f32(), z: l.f32() }; return a ? p : null; };
+        const m = { apparition: point(), deconnexion: point(), mort: point() };
+        m.maison = { x: l.f32(), y: l.f32(), z: l.f32() };
+        if (l.bool()) { const n2 = l.compte(); l.verifier(n2); m.carte = l.o.subarray(l.pos, l.pos + n2); l.pos += n2; }
+        res.mondes.set(id, m);
       }
       res.nom = l.chaine();
       l.sauter(8); l.chaine(); l.sauter(1 + 8);   // identifiant, graine de départ, triche, date de création

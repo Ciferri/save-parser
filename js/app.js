@@ -1,6 +1,9 @@
 // Interface de la page : onglets, dépôt de fichiers et affichage des résultats de chaque outil.
 "use strict";
 
+// version ajoutée aux adresses des scripts (?v=…) pour que les navigateurs prennent la nouvelle version après une mise à jour
+const VERSION_SCRIPTS = new URL(document.currentScript.src).search;
+
 const $ = (sel, racine = document) => racine.querySelector(sel);
 const echapper = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const nombre = (n) => Math.round(n).toLocaleString("fr-FR");
@@ -317,7 +320,7 @@ const BUDGET = 8_000_000;
 
 // Lance une recherche dans un worker. Renvoie une fonction qui l'arrête.
 function lancerWorker(message, { progression, fin, echec }) {
-  const w = new Worker("js/worker-noms.js");
+  const w = new Worker("js/worker-noms.js" + VERSION_SCRIPTS);
   w.onmessage = (e) => {
     const d = e.data;
     if (d.type === "progression") progression(d);
@@ -693,7 +696,58 @@ entreeMonde.addEventListener("change", async () => {
   $("#depot-monde span").textContent = `Dossier : ${dossier || "monde"} (cliquez pour en choisir un autre)`;
   afficherTombes(monde.tombes);
   afficherPortails();
+  // identifiant du monde (dans le .fwl2 de la même sauvegarde) pour retrouver la carte explorée du personnage
+  const fwl = tous.find((f) => f.name === `_main.${choix.sauvegarde}.fwl2`) || tous.find((f) => /\.fwl2?$/.test(f.name));
+  let info = null;
+  try { if (fwl) info = lireFwl(new Uint8Array(await fwl.arrayBuffer())); } catch { info = null; }
+  mondeCharge = { info, tombes: monde.tombes, portails: monde.portails };
+  majCarte();
 });
+
+// ---------- carte ----------
+
+let mondeCharge = null, persoCarte = null, pointsCarte = [];
+actionsDepot.monde = (s) => { persoCarte = s; majCarte(); };
+
+async function majCarte() {
+  if (!mondeCharge) return;
+  $("#monde-carte").hidden = false;
+  const { info } = mondeCharge;
+  let exploree = null, perso = null, etat;
+  const donneesPerso = persoCarte && persoCarte.mondes && info ? persoCarte.mondes.get(info.id) : null;
+  if (!persoCarte) etat = "Chargez votre fichier de personnage en haut de la page pour voir en fond les zones que vous avez explorées.";
+  else if (!info) etat = "Fichier .fwl2 du monde introuvable dans le dossier : impossible de retrouver votre carte explorée.";
+  else if (!donneesPerso || !donneesPerso.carte) etat = `${persoCarte.nom} n'a pas de carte enregistrée pour le monde ${info.nom}.`;
+  else {
+    try {
+      exploree = await lireCarteExploree(donneesPerso.carte);
+      perso = donneesPerso;
+      etat = `Carte explorée de ${persoCarte.nom} sur ${info.nom} (graine ${info.graine}), avec ses ${exploree.marqueurs.length} marqueur(s).`;
+    } catch {
+      etat = "La carte explorée du personnage n'a pas pu être lue.";
+    }
+  }
+  $("#carte-etat").textContent = etat + " Survolez un point pour son détail.";
+  pointsCarte = dessinerCarte($("#carte-monde"), { exploree, perso, tombes: mondeCharge.tombes, portails: mondeCharge.portails });
+}
+
+const canvasCarte = $("#carte-monde"), bulle = $("#carte-bulle");
+canvasCarte.addEventListener("mousemove", (e) => {
+  const r = canvasCarte.getBoundingClientRect(), k = canvasCarte.width / r.width;
+  const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+  let meilleur = null, d2 = (10 * k) ** 2;
+  for (const p of pointsCarte) {
+    const d = (p.px - x) ** 2 + (p.py - y) ** 2;
+    if (d < d2) { d2 = d; meilleur = p; }
+  }
+  bulle.hidden = !meilleur;
+  if (meilleur) {
+    bulle.textContent = meilleur.info;
+    bulle.style.left = `${e.clientX - r.left}px`;
+    bulle.style.top = `${e.clientY - r.top}px`;
+  }
+});
+canvasCarte.addEventListener("mouseleave", () => { bulle.hidden = true; });
 
 // Tombes des joueurs, la plus récente d'abord, avec leur contenu.
 const NOM_PAR_HACHAGE = new Map(Object.entries(JEU.nomsPrefab).map(([p, n]) => [hachage(p), n]));
